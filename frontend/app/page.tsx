@@ -691,14 +691,13 @@ function Ask() {
               <div>
                 <div className="font-display text-2xl font-bold text-ink">Henning</div>
                 <div className="mt-1 text-xs italic" style={{ color: "#C9F5D5" }}>
-                  Co-builder
+                  Founding Engineer · Kalipso
                 </div>
               </div>
             </div>
 
             <div className="mt-6 space-y-3 text-sm text-ink-mid">
               <Row I={Code2}>Backend · Infra · AI engineering</Row>
-              <Row I={ShieldCheck}>Came 2nd at Kong hackathon — back for the win</Row>
             </div>
           </div>
         </div>

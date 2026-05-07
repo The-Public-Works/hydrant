@@ -724,7 +724,7 @@ function SlideAsk() {
           <div>
             <div className="font-display text-2xl font-bold text-ink">Henning</div>
             <div className="mt-1 text-xs italic" style={{ color: "#C9F5D5" }}>
-              Co-builder
+              Founding Engineer · Kalipso
             </div>
           </div>
         </div>
@@ -735,7 +735,7 @@ function SlideAsk() {
             className="flex items-center gap-3 hover:text-ink"
           >
             <Mail size={16} className="text-spotify" />
-            chetan@kalipso.ai
+            chetanbadgujar92@gmail.com
           </a>
           <div className="flex items-center gap-3">
             <Code2 size={16} className="text-spotify" />
