@@ -16,6 +16,11 @@ class Config:
     cache_dir: Path
     openrouter_api_key: str | None
     openrouter_model: str
+    # Per-source tokens. Each is optional — ingestion subcommands fail with a
+    # clear error if their source's token isn't set.
+    slack_bot_token: str | None
+    notion_api_key: str | None
+    linear_api_key: str | None
 
     @classmethod
     def load(cls) -> "Config":
@@ -28,4 +33,8 @@ class Config:
             # Only required by the web demo; indexer & MCP server work without it.
             openrouter_api_key=os.getenv("OPENROUTER_API_KEY"),
             openrouter_model=os.getenv("OPENROUTER_MODEL", "anthropic/claude-sonnet-4.5"),
+            # Each required only by its matching `python -m indexer <source>` subcommand.
+            slack_bot_token=os.getenv("SLACK_BOT_TOKEN"),
+            notion_api_key=os.getenv("NOTION_API_KEY"),
+            linear_api_key=os.getenv("LINEAR_API_KEY"),
         )

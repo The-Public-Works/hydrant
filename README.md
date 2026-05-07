@@ -64,38 +64,92 @@ the same Postgres so a single query can mix kNN with graph traversal.
    dashboard lifts it to 2000 RPM at no cost — recommended for any repo
    bigger than ~300 chunks.
 
-4. **Wire the MCP server into Cline**
+4. **Wire the MCP server into your client**
 
-   In VS Code, install the **Cline** extension. Open Cline → ⚙️ → "MCP
-   Servers" → "Edit Settings" (or directly edit
+   `bin/run-mcp.sh` is the single launch path used by every client. It
+   `cd`'s to the repo root, sources `.env`, and execs `python -m mcp_server`
+   from the project's venv — so you never have to put secrets in a
+   client config.
+
+   Pick whichever client(s) you want:
+
+   <details>
+   <summary><strong>Claude Code</strong> — zero-config (just open the repo)</summary>
+
+   Already done. The `.mcp.json` at the project root is auto-picked-up
+   on session start — Claude Code's first run inside this directory
+   will prompt you to approve the `ctx` server, after which all 12
+   tools are available.
+
+   To reload after editing the server: `/mcp` in Claude Code.
+
+   No paths to edit; `.mcp.json` uses a relative path that resolves
+   from the project root (which Claude Code spawns the server from).
+
+   </details>
+
+   <details>
+   <summary><strong>Cline (VS Code extension)</strong></summary>
+
+   Install **Cline** in VS Code. Open Cline → ⚙️ → "MCP Servers" →
+   "Edit Settings" (or directly edit
    `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`):
 
    ```json
    {
      "mcpServers": {
        "ctx": {
-         "command": "/absolute/path/to/hackathon-mcp/.venv/bin/python",
-         "args": ["-m", "mcp_server"],
-         "cwd": "/absolute/path/to/hackathon-mcp",
+         "command": "/absolute/path/to/Cline-Hackathon/bin/run-mcp.sh",
+         "args": [],
          "disabled": false,
-         "autoApprove": ["search_context", "get_node", "get_neighbors", "list_repos", "trace_issue", "get_pr_diff", "git_blame"]
+         "autoApprove": [
+           "search_all", "find_similar_incidents", "get_runbook",
+           "who_owns", "diagnose_incident",
+           "search_context", "get_node", "get_neighbors", "list_repos",
+           "trace_issue", "get_pr_diff", "git_blame"
+         ]
        }
      }
    }
    ```
 
-   Set Cline's **API Provider** to **OpenRouter**, paste your OpenRouter
-   key, and pick a Claude model (e.g. `anthropic/claude-sonnet-4.5`). Now
-   the chat model lives on OpenRouter; the MCP tools come from this repo.
+   Replace `/absolute/path/to/Cline-Hackathon/` with the actual path
+   on your machine (`pwd` in the repo root prints it).
 
-   *Same JSON shape works for Claude Desktop if you ever want to switch —
-   just put it in `~/Library/Application Support/Claude/claude_desktop_config.json`.*
+   Set Cline's **API Provider** to **OpenRouter**, paste your
+   `OPENROUTER_API_KEY`, and pick a Claude model (e.g.
+   `anthropic/claude-sonnet-4.5`). The chat model lives on
+   OpenRouter; the MCP tools come from this repo.
 
-5. **Demo prompt** (paste into Cline)
+   </details>
+
+   <details>
+   <summary><strong>Claude Desktop</strong> (same JSON, different file)</summary>
+
+   ```bash
+   # macOS path
+   open "$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+   ```
+
+   Paste the same `mcpServers.ctx` block as the Cline config above
+   (with your absolute path). Restart Claude Desktop after saving.
+
+   </details>
+
+5. **Demo prompt** (works in any of the three clients)
+
+   The headline call:
+
+   > Use the `ctx` MCP server. **Diagnose** this incident: *"auth is
+   > throwing 401s after a deploy."* Call `diagnose_incident` first,
+   > then cite the most relevant Slack thread, Linear ticket, and
+   > runbook section by URL.
+
+   The legacy GitHub-only flow still works too:
 
    > Use the `ctx` MCP server. Investigate issue #N in `<owner>/<name>` —
-   > call `trace_issue` first, then drill into suspect PRs with `git_blame`
-   > and `get_pr_diff`, and propose a fix.
+   > call `trace_issue` first, then drill into suspect PRs with
+   > `git_blame` and `get_pr_diff`, and propose a fix.
 
 ## Web demo (chat + live graph)
 
