@@ -21,5 +21,24 @@ services:
     mem_reservation: 256m
     shm_size: 256m
 
+  # Pitch website + product demo (Next.js).
+  # Routes:
+  #   /          marketing landing
+  #   /present   slide deck (use ?speaker_notes=true for presenter view)
+  #   /demo      ctx-mcp chat + graph (proxies /api/* to the api service)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ctx-frontend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    # Note: /demo proxies /api/* to localhost:8765 (the FastAPI backend).
+    # When we dockerize `api/` later we'll add a depends_on + an env var
+    # to rewrite the proxy target to `http://api:8765`. For now run the
+    # api locally (`python -m api`) and host.docker.internal:8765 from
+    # the container — or just use /, /present which need no backend.
+
 volumes:
   ctx-postgres-data:

@@ -2,12 +2,26 @@
 
 Each function returns a JSON-friendly dict the agent can read directly.
 Errors raise so the MCP runtime surfaces them as tool errors.
+
+Tool families:
+  * GitHub-only (existing): search_context, get_node, get_neighbors,
+    trace_issue, git_blame, get_pr_diff, list_repos. These require a
+    repo to be indexed and use the `gh:owner/name:%` source-key prefix.
+
+  * Cross-source (new, demo-flavored): search_all, find_similar_incidents,
+    get_runbook, who_owns, diagnose_incident. These span the Slack +
+    Linear + GitHub corpora and don't require a repo argument — the
+    intent is "given a symptom, surface everything we know about it
+    from any source." `diagnose_incident` is the headline composite:
+    one call returns ranked similar incidents + the matching runbook
+    + the owners for the affected area.
 """
 
 from __future__ import annotations
 
 import re
 import subprocess
+from pathlib import Path
 from typing import Any
 
 from .state import STATE
@@ -477,3 +491,676 @@ async def list_repos() -> dict[str, Any]:
                 "node_counts": {c["type"]: int(c["n"]) for c in counts},
             })
     return {"repos": out}
+
+
+# ===========================================================================
+# Cross-source tools
+# ---------------------------------------------------------------------------
+# Built for the demo flow: "given a symptom, surface everything we know about
+# it from Slack + Linear + GitHub in one call." The unified result shape lets
+# the agent render every hit as a citation regardless of source.
+# ===========================================================================
+
+
+# Map a high-level "source" name (slack/linear/github) to the underlying
+# node types. Lets callers filter without knowing the schema.
+_SOURCE_TYPES: dict[str, list[str]] = {
+    "slack": ["slack_message", "slack_channel"],
+    "linear": ["linear_issue", "linear_comment", "linear_team"],
+    "github": ["file", "doc_chunk", "symbol", "commit", "pr", "issue", "comment"],
+}
+
+
+def _classify_source(node_type: str) -> str:
+    """Inverse of _SOURCE_TYPES — which source does this node belong to?"""
+    if node_type.startswith("slack"):
+        return "slack"
+    if node_type.startswith("linear"):
+        return "linear"
+    return "github"
+
+
+def _github_url_for(source_key: str, props: dict) -> str | None:
+    """Construct a deep link to a GitHub file/path on the default branch.
+
+    We don't store html_urls for code/docs nodes — only for issues/PRs. So
+    for files and doc_chunks we synthesize a URL from the source_key
+    (which has the owner/repo) and the path. Best-effort; returns None if
+    the source_key isn't a GitHub one.
+
+    Format: https://github.com/<owner>/<repo>/blob/main/<path>[#L<start>[-L<end>]]
+    """
+    if not source_key.startswith("gh:"):
+        return None
+    # gh:<owner/name>:<type>:<rest>
+    rest = source_key[3:]
+    slug, _, _ = rest.partition(":")
+    if "/" not in slug:
+        return None
+    fpath = props.get("file_path") or props.get("path")
+    if not fpath:
+        return None
+    url = f"https://github.com/{slug}/blob/main/{fpath}"
+    line_start = props.get("line_start")
+    if line_start:
+        url += f"#L{line_start}"
+        line_end = props.get("line_end")
+        if line_end and line_end != line_start:
+            url += f"-L{line_end}"
+    return url
+
+
+def _format_unified(row: dict) -> dict[str, Any]:
+    """Turn a chunks-join-nodes row into the standard {source, type, title,
+    url, snippet, score, metadata} shape that every cross-source tool returns.
+
+    Centralized so the agent sees identical shapes whether the hit came from
+    Slack, Linear, or GitHub — makes the prompt-side rendering trivial.
+    """
+    node_type = row["type"]
+    props = row.get("props") or {}
+    source = _classify_source(node_type)
+
+    if node_type == "slack_message":
+        title = f"#{props.get('channel_name', '?')}"
+        url = props.get("html_url")
+        metadata = {
+            "channel_name": props.get("channel_name"),
+            "ts": props.get("ts"),
+            "thread_ts": props.get("thread_ts"),
+            "user": props.get("user"),
+        }
+    elif node_type == "slack_channel":
+        title = f"#{props.get('name', '?')} (channel)"
+        url = None
+        metadata = {"topic": props.get("topic")}
+    elif node_type == "linear_issue":
+        title = f"{props.get('identifier', '?')} — {props.get('title', '')}"
+        url = props.get("url")
+        metadata = {
+            "identifier": props.get("identifier"),
+            "state": props.get("state"),
+            "priority": props.get("priority"),
+            "labels": props.get("labels"),
+        }
+    elif node_type == "linear_comment":
+        title = f"comment on {(props.get('issue_identifier') or '?')}"
+        url = props.get("url")
+        metadata = {"issue_identifier": props.get("issue_identifier")}
+    elif node_type == "doc_chunk":
+        # GitHub doc chunk — a section of a markdown/yaml/etc file
+        path = props.get("file_path", "?")
+        section = props.get("section")
+        title = f"{path}" + (f" — {section}" if section else "")
+        url = _github_url_for(row["source_key"], props)
+        metadata = {
+            "file_path": path,
+            "section": section,
+            "line_start": props.get("line_start"),
+            "line_end": props.get("line_end"),
+        }
+    elif node_type == "file":
+        path = props.get("path", "?")
+        title = path
+        url = _github_url_for(row["source_key"], props)
+        metadata = {"path": path, "language": props.get("language")}
+    elif node_type in ("issue", "pr"):
+        n = props.get("number")
+        kind = "Issue" if node_type == "issue" else "PR"
+        title = f"{kind} #{n} — {props.get('title', '')}"
+        url = props.get("html_url")
+        metadata = {"number": n, "state": props.get("state")}
+    elif node_type == "commit":
+        sha = (props.get("sha") or "")[:8]
+        msg = (props.get("message") or "").splitlines()[0] if props.get("message") else ""
+        title = f"commit {sha} — {msg[:60]}"
+        url = props.get("html_url")
+        metadata = {"sha": props.get("sha"), "authored_at": props.get("authored_at")}
+    else:
+        title = node_type
+        url = props.get("html_url") or props.get("url")
+        metadata = {}
+
+    return {
+        "source": source,
+        "type": node_type,
+        "title": title,
+        "url": url,
+        "snippet": _snippet(row.get("text") or ""),
+        "score": float(row["score"]) if "score" in row else None,
+        "metadata": metadata,
+    }
+
+
+async def _semantic_search(
+    query: str,
+    *,
+    k: int,
+    type_filter: list[str] | None = None,
+    extra_where_sql: str = "",
+    extra_args: list[Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Shared kNN core. Embeds `query`, runs the search, returns raw rows
+    formatted via `_format_unified`. The caller controls scoping via the
+    optional type filter and an extra WHERE fragment (which can reference
+    `n.type`, `n.props`, `n.source_key`).
+
+    `extra_where_sql` must be a parameterized fragment using $N placeholders
+    starting from the next available index (the embedding is $1, the LIMIT
+    is the last). Pass values for those placeholders in `extra_args`.
+    """
+    pool = STATE.pool
+    embedder = STATE.embedder
+    assert pool is not None and embedder is not None
+
+    k = max(1, min(k, 25))
+    vec = await embedder.embed_query(query)
+
+    # Build the SQL piece-by-piece. Order of placeholders:
+    #   $1                 — embedding
+    #   $2..$(2+E-1)       — extra_where_sql args
+    #   $(2+E)             — type_filter array (if present)
+    #   $(2+E+T)           — k (always the last)
+    args: list[Any] = [vec]
+    where_clauses: list[str] = []
+
+    if extra_where_sql:
+        where_clauses.append(f"({extra_where_sql})")
+        args.extend(extra_args or [])
+
+    if type_filter:
+        args.append(type_filter)
+        where_clauses.append(f"n.type = ANY(${len(args)}::text[])")
+
+    args.append(k)
+    where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
+
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"""
+            SELECT n.id, n.type, n.source_key, n.props,
+                   c.text,
+                   1 - (c.embedding <=> $1) AS score
+            FROM chunks c
+            JOIN nodes  n ON n.id = c.node_id
+            WHERE {where_sql}
+            ORDER BY c.embedding <=> $1
+            LIMIT ${len(args)}
+            """,
+            *args,
+        )
+    return [
+        {**_format_unified(dict(r)), "node_id": int(r["id"]), "source_key": r["source_key"]}
+        for r in rows
+    ]
+
+
+# --- search_all -----------------------------------------------------------
+
+
+async def search_all(
+    query: str, k: int = 10, source: str | None = None,
+) -> dict[str, Any]:
+    """Cross-source semantic search across Slack + Linear + GitHub.
+
+    Pass `source` to scope to one of: "slack", "linear", "github". Without
+    it, returns the top-k hits from the entire corpus.
+    """
+    type_filter: list[str] | None = None
+    if source:
+        if source not in _SOURCE_TYPES:
+            raise ValueError(
+                f"unknown source {source!r}; valid: {sorted(_SOURCE_TYPES)}"
+            )
+        type_filter = _SOURCE_TYPES[source]
+
+    results = await _semantic_search(query, k=k, type_filter=type_filter)
+    return {"query": query, "source_filter": source, "results": results}
+
+
+# --- find_similar_incidents -----------------------------------------------
+
+
+async def find_similar_incidents(symptom: str, k: int = 8) -> dict[str, Any]:
+    """Find past incidents semantically similar to a symptom description.
+
+    Searches:
+      * Slack messages from `incident-*` channels (where on-call chatter lives)
+      * Linear issues marked Done/Completed (resolved past incidents)
+      * Linear comments (often where the RCA detail sits)
+
+    Returns ranked hits with deep links. Use this when an agent asks
+    "what do we know about <symptom>?" — it's the entry point to the
+    incident knowledge graph.
+    """
+    # SQL filter: incident-flavored content only.
+    # Note: $2 is the only extra arg here (the LIKE pattern); k is appended
+    # automatically by _semantic_search.
+    extra_sql = """
+        (
+          (n.type = 'slack_message' AND n.props->>'channel_name' LIKE $2)
+          OR (n.type = 'linear_issue' AND n.props->>'state' IN ('Done','Completed','Cancelled'))
+          OR n.type = 'linear_comment'
+        )
+    """
+    results = await _semantic_search(
+        symptom,
+        k=k,
+        extra_where_sql=extra_sql,
+        extra_args=["incident-%"],
+    )
+    return {"symptom": symptom, "results": results}
+
+
+# --- get_runbook ----------------------------------------------------------
+
+
+async def get_runbook(topic: str, k: int = 3) -> dict[str, Any]:
+    """Retrieve the most relevant runbook section(s) for a topic.
+
+    Filters to GitHub doc_chunks whose file_path contains 'runbook'. Returns
+    up to `k` matching sections, each with the file path + line range so the
+    agent can cite exactly which part of which runbook applies.
+    """
+    extra_sql = """
+        (
+          n.type = 'doc_chunk'
+          AND (n.props->>'file_path' ILIKE $2 OR n.props->>'file_path' ILIKE $3)
+        )
+    """
+    results = await _semantic_search(
+        topic,
+        k=k,
+        extra_where_sql=extra_sql,
+        extra_args=["%/runbook%", "%runbook%.md"],
+    )
+    return {"topic": topic, "results": results}
+
+
+# --- who_owns -------------------------------------------------------------
+
+
+def _parse_codeowners(text: str) -> list[tuple[str, list[str]]]:
+    """Parse a CODEOWNERS file into [(pattern, owners), ...] tuples.
+
+    Comments and blank lines are skipped. Owners include the leading '@' so
+    the agent can render them as-is.
+    """
+    rules: list[tuple[str, list[str]]] = []
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        pattern, *owners = parts
+        rules.append((pattern, owners))
+    return rules
+
+
+def _codeowners_match(pattern: str, path: str) -> bool:
+    """Mimic the GitHub CODEOWNERS matching rules — close enough for the demo.
+
+    GitHub's actual semantics are gitignore-flavored; we implement the most
+    common forms: '*' (everything), exact path, leading '/' anchor, and
+    '/dir/' (dir + everything below).
+    """
+    if pattern == "*":
+        return True
+    # Trailing slash means "this directory and below"
+    if pattern.endswith("/"):
+        return path == pattern.rstrip("/") or path.startswith(pattern)
+    # Leading '/' is anchored to repo root (which is what we're matching anyway)
+    p = pattern.lstrip("/")
+    target = path.lstrip("/")
+    if p == target:
+        return True
+    # Glob-ish: '*' inside a path segment
+    if "*" in p:
+        rx = re.escape(p).replace(r"\*", ".*")
+        return re.match(rx + r"$", target) is not None
+    # Treat bare paths as a directory prefix too (e.g. "/packages/auth/" matches
+    # "packages/auth/src/foo.ts")
+    if target.startswith(p.rstrip("/") + "/"):
+        return True
+    return False
+
+
+async def who_owns(path: str, repo: str | None = None) -> dict[str, Any]:
+    """Return the CODEOWNERS for a file path within an indexed GitHub repo.
+
+    Reads CODEOWNERS from the local clone (the indexer keeps one per repo
+    in `cfg.cache_dir`). Returns the most-specific matching rule's owners,
+    plus the matched pattern, so the agent can cite both.
+    """
+    cfg = STATE.cfg
+    assert cfg is not None
+    owner, name = await _resolve_repo_slug(repo)
+    repo_dir: Path = cfg.cache_dir / owner / name
+
+    # CODEOWNERS may live at root, in /docs, or in /.github — same as
+    # what GitHub itself supports.
+    candidates = [
+        repo_dir / "CODEOWNERS",
+        repo_dir / ".github" / "CODEOWNERS",
+        repo_dir / "docs" / "CODEOWNERS",
+    ]
+    src = next((p for p in candidates if p.exists()), None)
+    if src is None:
+        return {"path": path, "owners": [], "matched_pattern": None,
+                "note": "no CODEOWNERS file found in the indexed clone"}
+
+    rules = _parse_codeowners(src.read_text())
+
+    # GitHub uses *last matching rule wins*. Walk in order and remember the
+    # last one that matched.
+    last_match: tuple[str, list[str]] | None = None
+    for pattern, owners in rules:
+        if _codeowners_match(pattern, path):
+            last_match = (pattern, owners)
+
+    if last_match is None:
+        return {"path": path, "owners": [], "matched_pattern": None}
+    return {
+        "path": path,
+        "matched_pattern": last_match[0],
+        "owners": last_match[1],
+    }
+
+
+# --- diagnose_incident ----------------------------------------------------
+
+
+async def post_to_slack(
+    channel: str,
+    text: str,
+    thread_ts: str | None = None,
+) -> dict[str, Any]:
+    """Post a message back into a Slack channel.
+
+    The demo finale: after `diagnose_incident` synthesizes context, the
+    agent calls this to drop the answer into the active incident channel
+    so the whole on-call team sees it — not just the person who asked.
+
+    `channel` accepts either the human name (e.g. "incident-2026-05-auth-down",
+    leading '#' optional) or the raw Slack channel ID (e.g. "C0B1XQN2D34").
+    Names are resolved against the `slack_channel` nodes in the index — so
+    only channels we've already ingested are addressable, which is what we
+    want (no accidental posts to random workspace channels).
+
+    Returns `{ok, channel, channel_id, ts, url}` so the agent can include
+    the resulting permalink in its reply.
+    """
+    cfg = STATE.cfg
+    pool = STATE.pool
+    assert cfg is not None and pool is not None
+    if not cfg.slack_bot_token:
+        raise ValueError(
+            "SLACK_BOT_TOKEN is not set in .env — needed for post_to_slack",
+        )
+
+    # Resolve channel name → ID against the indexed slack_channel nodes.
+    # This intentionally rejects channels we haven't ingested, so the
+    # tool can't post into arbitrary workspace channels.
+    raw = channel.lstrip("#").strip()
+    if raw.startswith("C") and raw.isalnum() and len(raw) > 8:
+        channel_id = raw
+    else:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT props->>'id' AS id, props->>'name' AS name
+                FROM nodes
+                WHERE type = 'slack_channel'
+                  AND props->>'name' = $1
+                """,
+                raw,
+            )
+        if not row:
+            raise ValueError(
+                f"Slack channel #{raw!r} is not in the index — "
+                f"only ingested channels are addressable. Re-run "
+                f"`python -m indexer slack` if you've added new ones.",
+            )
+        channel_id = row["id"]
+
+    # Lazy-import to avoid pulling httpx into the import path of every
+    # MCP tool call when SLACK_BOT_TOKEN isn't configured.
+    from indexer.slack_fetcher import Slack
+
+    async with Slack(cfg.slack_bot_token) as sl:
+        ws = await sl.workspace_ref()
+        resp = await sl.post_message(channel_id, text, thread_ts=thread_ts)
+
+    ts = resp.get("ts", "")
+    permalink = (
+        f"https://{ws.team_domain}.slack.com/archives/{channel_id}"
+        f"/p{ts.replace('.', '')}"
+        if ts else None
+    )
+
+    return {
+        "ok": True,
+        "channel": raw,
+        "channel_id": channel_id,
+        "ts": ts,
+        "url": permalink,
+        "thread_ts": thread_ts,
+    }
+
+
+# --- Linear write tools ---------------------------------------------------
+# Used by the demo flow to: (a) open an incident tracking ticket, (b) push
+# status updates onto it as work progresses, (c) close it out with the
+# final RCA. Each tool fails fast if LINEAR_API_KEY isn't set.
+
+
+async def _resolve_linear_team(ln, team_key: str | None) -> dict:
+    """Pick a Linear team — either the one matching `team_key` or the
+    first team the API key can see. Raises if nothing matches.
+    """
+    selected: dict | None = None
+    available: list[str] = []
+    async for team in ln.teams():
+        available.append(team.get("key", "?"))
+        if team_key:
+            if team.get("key") == team_key:
+                return team
+        elif selected is None:
+            selected = team
+    if team_key:
+        raise ValueError(
+            f"Linear team {team_key!r} not found. Available: {', '.join(available) or '(none)'}"
+        )
+    if selected is None:
+        raise ValueError("no Linear teams accessible by this API key")
+    return selected
+
+
+async def create_linear_issue(
+    title: str,
+    description: str,
+    priority: int = 2,
+    team_key: str | None = None,
+    state: str = "In Progress",
+) -> dict[str, Any]:
+    """Create a Linear incident tracking ticket.
+
+    The demo flow calls this once an incident is being actively worked
+    on, so the on-call rotation has a single tracking artifact. Pass the
+    synthesized context from `diagnose_incident` as the description.
+
+    `priority`: 0 none, 1 urgent, 2 high (default), 3 normal, 4 low.
+    `state`: defaults to "In Progress"; falls back to whatever
+    started-typed state the team has if the exact name isn't present.
+    """
+    cfg = STATE.cfg
+    assert cfg is not None
+    if not cfg.linear_api_key:
+        raise ValueError(
+            "LINEAR_API_KEY is not set in .env — needed for create_linear_issue",
+        )
+
+    from indexer.linear_fetcher import Linear
+
+    async with Linear(cfg.linear_api_key) as ln:
+        team = await _resolve_linear_team(ln, team_key)
+        state_id = await ln.state_id_for(team_id=team["id"], state_name=state)
+        issue = await ln.create_issue(
+            team_id=team["id"],
+            title=title,
+            description=description,
+            priority=priority,
+            state_id=state_id,
+        )
+
+    return {
+        "ok": True,
+        "identifier": issue["identifier"],
+        "title": issue["title"],
+        "url": issue["url"],
+        "state": (issue.get("state") or {}).get("name"),
+        "priority": issue.get("priority"),
+        "team": (issue.get("team") or {}).get("key"),
+    }
+
+
+async def add_linear_comment(identifier: str, body: str) -> dict[str, Any]:
+    """Append a comment to a Linear issue.
+
+    Use this to push status updates onto an incident ticket as the
+    investigation progresses — *"rolled back to v1.20.4"*, *"hotfix
+    PR #1241 shipped"*, *"final RCA: …"*. Markdown supported.
+
+    `identifier` is the human form, e.g. 'CLI-5' or 'cli-5'.
+    """
+    cfg = STATE.cfg
+    assert cfg is not None
+    if not cfg.linear_api_key:
+        raise ValueError(
+            "LINEAR_API_KEY is not set in .env — needed for add_linear_comment",
+        )
+
+    from indexer.linear_fetcher import Linear
+
+    async with Linear(cfg.linear_api_key) as ln:
+        issue = await ln.find_issue_by_identifier(identifier)
+        if not issue:
+            raise ValueError(
+                f"Linear issue {identifier!r} not found — "
+                f"check the identifier (e.g. 'CLI-5')."
+            )
+        comment = await ln.create_comment(issue_id=issue["id"], body=body)
+
+    return {
+        "ok": True,
+        "identifier": issue["identifier"],
+        "issue_url": issue.get("url"),
+        "comment_url": comment.get("url"),
+    }
+
+
+async def update_linear_issue(
+    identifier: str,
+    state: str | None = None,
+    priority: int | None = None,
+    description: str | None = None,
+    title: str | None = None,
+) -> dict[str, Any]:
+    """Update fields on an existing Linear issue.
+
+    The demo's most common use: mark an incident resolved by calling
+    with `state="Done"` (and optionally a final summary in
+    `description`). Pass only the fields you want to change.
+    """
+    cfg = STATE.cfg
+    assert cfg is not None
+    if not cfg.linear_api_key:
+        raise ValueError(
+            "LINEAR_API_KEY is not set in .env — needed for update_linear_issue",
+        )
+
+    if state is None and priority is None and description is None and title is None:
+        raise ValueError(
+            "update_linear_issue: pass at least one of state/priority/description/title",
+        )
+
+    from indexer.linear_fetcher import Linear
+
+    async with Linear(cfg.linear_api_key) as ln:
+        issue = await ln.find_issue_by_identifier(identifier)
+        if not issue:
+            raise ValueError(f"Linear issue {identifier!r} not found")
+
+        state_id: str | None = None
+        if state is not None:
+            team_id = (issue.get("team") or {}).get("id")
+            if not team_id:
+                raise ValueError(
+                    f"could not resolve team for {identifier!r} — "
+                    f"can't change state without it"
+                )
+            state_id = await ln.state_id_for(team_id=team_id, state_name=state)
+            if not state_id:
+                raise ValueError(
+                    f"no state matching {state!r} found in team — "
+                    f"try 'In Progress', 'Done', 'Backlog', etc."
+                )
+
+        updated = await ln.update_issue(
+            issue_id=issue["id"],
+            state_id=state_id,
+            priority=priority,
+            description=description,
+            title=title,
+        )
+
+    return {
+        "ok": True,
+        "identifier": updated["identifier"],
+        "url": updated.get("url"),
+        "state": (updated.get("state") or {}).get("name"),
+        "priority": updated.get("priority"),
+        "title": updated.get("title"),
+    }
+
+
+async def diagnose_incident(symptom: str) -> dict[str, Any]:
+    """Composite tool — the demo's headline call.
+
+    Given a symptom (e.g. "auth is throwing 401s after deploy"), returns
+    everything an on-call engineer needs in their first 60 seconds:
+
+      * Similar past incidents (Slack threads + Linear tickets)
+      * The matching runbook section(s) from GitHub
+      * Best-effort code owners for the affected area (parsed from
+        CODEOWNERS in the indexed repo, when the symptom suggests a
+        clear path)
+
+    The agent typically calls this tool *first*, then drills into specific
+    citations using `get_node` / `get_pr_diff` / `git_blame` if needed.
+    """
+    similar = await find_similar_incidents(symptom, k=6)
+    runbook = await get_runbook(symptom, k=2)
+
+    # Best-effort owner lookup: pick a path hint from the top-matching
+    # runbook (if any). Skipped silently if no repo is indexed or the
+    # runbook hit doesn't have one.
+    owners_block: dict[str, Any] | None = None
+    top_runbook = (runbook.get("results") or [None])[0]
+    if top_runbook and top_runbook.get("metadata", {}).get("file_path"):
+        path = top_runbook["metadata"]["file_path"]
+        try:
+            owners_block = await who_owns(path)
+        except Exception:
+            # Owners is a nice-to-have; don't fail the whole diagnosis if
+            # the repo isn't indexed or there's no CODEOWNERS.
+            owners_block = None
+
+    return {
+        "symptom": symptom,
+        "similar_incidents": similar["results"],
+        "runbook": runbook["results"],
+        "owners": owners_block,
+    }

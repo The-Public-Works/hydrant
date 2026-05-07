@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ctx-mcp demo",
-  description: "Knowledge graph + agent demo for a GitHub repo.",
+  title: "Spotify-2 · Spotify Hackathon",
+  description:
+    "Cutting incident MTTR with an AI knowledge layer — Team Spotify-2, Spotify x Cline + 2Hero hackathon",
 };
 
 export default function RootLayout({

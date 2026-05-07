@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ctx": {
+      "command": "./bin/run-mcp.sh",
+      "args": []
+    }
+  }
+}

@@ -1,6 +1,16 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────
+   Theme tokens
+   - Original ctx-mcp demo (graph + chat) uses `--background` /
+     `--accent` etc. via CSS vars (kept for backward compat at /demo).
+   - The new Spotify-2 pitch site (/, /present) uses Tailwind v4
+     theme tokens defined in @theme so classes like `bg-spotify`,
+     `text-ink`, `font-display` work directly.
+   ───────────────────────────────────────────────────────────────── */
+
 :root {
+  /* legacy ctx-mcp tokens — used by /demo */
   --background: #0b0d10;
   --foreground: #e7eaee;
   --panel: #14171c;
@@ -9,6 +19,33 @@
   --accent: #7dd3fc;
   --accent-strong: #38bdf8;
   --muted: #8a93a3;
+}
+
+@theme {
+  /* Spotify-2 pitch palette */
+  --color-spotify: #1DB954;
+  --color-spotify-dark: #0F7A38;
+  --color-spotify-glow: #1ED760;
+
+  /* Dark surfaces */
+  --color-bg: #0A0A0A;
+  --color-bg-panel: #151515;
+  --color-bg-raised: #1F1F1F;
+  --color-bg-card: #1A1A1A;
+
+  /* Text */
+  --color-ink: #FFFFFF;
+  --color-ink-mid: #C9C9C9;
+  --color-ink-dim: #8A8A8A;
+
+  /* Status */
+  --color-danger: #E5484D;
+
+  /* Display font (Georgia for headers) */
+  --font-display: Georgia, "Iowan Old Style", "Apple Garamond", "Palatino", serif;
+
+  /* Custom shadow used by hero / brain card */
+  --shadow-glow: 0 0 40px rgba(29, 185, 84, 0.25);
 }
 
 @theme inline {
@@ -24,7 +61,7 @@ html, body {
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
 }
 
-/* Type-color palette mirrored on the GraphPanel via the typeColor() fn. */
+/* ─── /demo type-color palette (used by GraphPanel) ─── */
 .dot-issue { background: #fb7185; }
 .dot-pr { background: #c084fc; }
 .dot-commit { background: #fbbf24; }
@@ -33,3 +70,14 @@ html, body {
 .dot-symbol { background: #34d399; }
 .dot-doc_chunk { background: #a3e635; }
 .dot-author { background: #f472b6; }
+
+/* ─── /, /present accents ─── */
+
+/* Subtle shimmer on the hero status pill */
+@keyframes shimmer {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+.shimmer {
+  animation: shimmer 2.4s ease-in-out infinite;
+}
