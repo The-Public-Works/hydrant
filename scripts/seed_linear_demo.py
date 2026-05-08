@@ -59,26 +59,31 @@ class Ticket:
 # the ticket identifier.
 TICKETS: list[Ticket] = [
     Ticket(
-        title="RCA: auth provider 401s after v1.21 upgrade — schema change in app-config",
+        title="RCA: JWT access tokens expiring instantly — JWT_ACCESS_EXPIRATION_MINUTES regression",
         description=(
             "## Summary\n\n"
-            "v1.21 changed the GitHub OAuth provider config schema "
-            "(`auth.providers.github.production`) to nest credentials under "
-            "`clientCredentials`. Our deployed app-config.production.yaml still "
-            "passed `clientId`/`clientSecret` at the top level, so provider "
-            "registration silently no-op'd on boot. Every login request 401'd "
-            "with `unknown_oauth_provider: github`.\n\n"
+            "A 'tighten JWT expiry' PR shipped a default of `0` for "
+            "`JWT_ACCESS_EXPIRATION_MINUTES` in `src/config/config.js`. The "
+            "framing was 'env var drives prod', but the prod deployment did "
+            "not actually set the override, so every freshly-signed access "
+            "token expired at issue time. `src/middlewares/auth.js` then 401'd "
+            "on the very next request, and `src/services/token.service.js` "
+            "couldn't refresh either because the access leg was already dead.\n\n"
             "## Impact\n\n"
             "- Login fully broken on web, mobile, CLI for ~13 minutes\n"
-            "- ~11k Sentry events at peak\n"
+            "- ~11k Sentry `TokenExpiredError: jwt expired` events at peak\n"
             "- 100% of new sessions affected\n\n"
             "## Fix\n\n"
-            "PR #1241 — 3-line app-config update to nest credentials correctly. "
-            "See also ADR-042 in the platform repo for the schema-change rationale.\n\n"
+            "1-line revert of the default in `src/config/config.js` back to "
+            "30 minutes. ADR-0001 already calls out 0/negative values as an "
+            "anti-pattern — the CI guard for it was never written.\n\n"
             "## Action items\n\n"
-            "- [ ] Add integration test for OAuth provider config bootstrapping\n"
-            "- [ ] Add `auth-config/` to CODEOWNERS\n"
-            "- [ ] Cross-reference deployed configs against ADR schema migrations in CI"
+            "- [ ] Add integration test exercising `src/middlewares/auth.js` + "
+            "`src/services/token.service.js` against a real config\n"
+            "- [ ] CI check that fails the build if `JWT_ACCESS_EXPIRATION_MINUTES` "
+            "default is < 1 (per ADR-0001)\n"
+            "- [ ] Tighten review on `src/config/config.js` — CODEOWNERS already "
+            "matches @alice-platform; require a second auth-team approver"
         ),
         priority=2,
         labels=["incident", "auth"],
@@ -88,8 +93,10 @@ TICKETS: list[Ticket] = [
                 "investigation timeline."
             ),
             TicketComment(
-                "Owner @alice was not paged because auth-config/ isn't in "
-                "CODEOWNERS. Added in follow-up PR #1247."
+                "@alice-platform was matched by CODEOWNERS on `src/config/config.js` "
+                "but the PR was framed as a security-tightening change and approved "
+                "without exercising the auth integration path. Adding a required "
+                "second reviewer rule for that file."
             ),
         ],
     ),

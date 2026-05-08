@@ -44,7 +44,7 @@ Run with `pnpm dev` (port 3000) or `docker compose up frontend`.
 | --- | --- | --- |
 | **Slack** (workspace `clinehackathon`) | 5 incident channels · 69 messages with threads · multi-author personas (Chetan/Henning) | 69 |
 | **Linear** (org `cline-hackathon`, team `CLI`) | 4 cross-referenced past-incident tickets (CLI-5 → CLI-8) + comments | 13 |
-| **GitHub** (`chetan1029/incident-platform-demo`) | 4 runbooks · 3 ADRs · code stubs · CHANGELOG · CODEOWNERS · README | 94 |
+| **GitHub** (`Henning-1/node-express-boilerplate`) | Real Express+JWT auth source · 3 runbooks · 2 ADRs · CHANGELOG · CODEOWNERS · staged bad PR + open incident issue | 94 |
 
 Every probe query (auth · checkout · db · techdocs) returns hits from all 3 sources.
 
@@ -156,8 +156,9 @@ Cline's MCP Servers panel.
 Call list_repos. What repositories are indexed?
 ```
 
-**Expected:** `chetan1029/incident-platform-demo` with node counts
-(~12 files, ~92 doc_chunks, 2 commits).
+**Expected:** `Henning-1/node-express-boilerplate` with node counts
+(real source tree, doc_chunks for runbooks/ADRs, plus the staged bad PR
+and open incident issue).
 
 ### 4.3 · 🟢 Slack-only retrieval  *(20 sec)*
 
@@ -184,12 +185,12 @@ words and cites the GitHub URL.
 ### 4.5 · 🟢 CODEOWNERS lookup  *(10 sec)*
 
 ```
-Who owns packages/auth/app-config.production.yaml in the indexed repo?
+Who owns src/services/token.service.js in the indexed repo?
 ```
 
 **Expected:** Returns `@alice-platform`, with `matched_pattern`
-`/packages/auth/app-config.production.yaml`. (Not `@chetan1029` —
-`@alice-platform` is the more specific match.)
+`/src/services/token.service.js`. (Not `@Henning-1` — the auth-surface
+rule is the more specific match.)
 
 ### 4.6 · 🟢 The headline cross-source call  *(30 sec)*
 
@@ -203,8 +204,9 @@ most likely fix.
 **Expected:**
 - Past incident: `#incident-2025-03-auth-down` or Linear `CLI-5`
 - Runbook: `docs/runbooks/auth-runbook.md`
-- Owner: `@alice-platform`
-- Fix: nest credentials under `clientCredentials` (the v1.21 schema change)
+- Owner: `@alice-platform` (matches `src/config/config.js` and `src/middlewares/auth.js`)
+- Fix: revert `JWT_ACCESS_EXPIRATION_MINUTES` default in `src/config/config.js`
+  back to ≥ 1 (PR #2 set it to `0`)
 
 This is the heart of the demo. **If this works, everything works.**
 
@@ -276,6 +278,18 @@ the on-stage portion takes.
 
 ## 5 · Demo-day checklist (print this)
 
+### Staged GitHub artifacts — **do NOT delete or merge**
+
+The live demo depends on two pieces of state in
+`Henning-1/node-express-boilerplate` that need to stay exactly where
+they are. If a future operator "tidies" the repo, the demo breaks.
+
+| Artifact | Where | Why it has to stay |
+| --- | --- | --- |
+| Bad PR #2 — *chore: tighten JWT access token expiry* | https://github.com/Henning-1/node-express-boilerplate/pull/2 | The 30 → 0 default for `JWT_ACCESS_EXPIRATION_MINUTES` is what `trace_issue` / `get_pr_diff` traces back to from the live incident. PR is squash-merged into `main`; **do not revert.** |
+| Issue #3 — *Auth 401s on prod after deploy — login completely broken* | https://github.com/Henning-1/node-express-boilerplate/issues/3 | The symptom report the agent reads when diagnosing. **Leave open.** Do not name the bad PR in the body. |
+| Tag `demo-baseline` | `git tag -l demo-baseline` in the fork | Rollback anchor if the fork ever needs to be reset. Don't delete. |
+
 ### 30 minutes before
 
 - [ ] `docker compose up -d postgres` — confirm `ctx-postgres` is **healthy**
@@ -340,7 +354,8 @@ Cline-Hackathon/
 Demo corpus repo (separate, public):
 
 ```
-chetan1029/incident-platform-demo/     ← runbooks + ADRs + code stubs
+Henning-1/node-express-boilerplate/    ← real Express+JWT auth, runbooks, ADRs,
+                                          + staged bad PR #2 and open issue #3
 ```
 
 ### One-line restart everything
