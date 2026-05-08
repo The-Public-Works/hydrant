@@ -70,44 +70,48 @@ PAST_INCIDENTS: list[Scenario] = [
     # depends on this being retrievable.
     Scenario(
         channel="incident-2025-03-auth-down",
-        topic="RESOLVED · Auth provider broken after v1.21 upgrade · sev2",
+        topic="RESOLVED · JWT access tokens expiring instantly after deploy · sev2",
         messages=[
             Msg("🚨 [10:42] sev2 — wall of 401s on prod auth. datadog auth-prod "
                 "dashboard is fully red. https://app.datadoghq.com/dashboard/auth-prod"),
             Msg("[10:43] @here on it, rolling page out"),
             Msg("[10:44] when did this start? error rate spike at 10:38 in grafana"),
-            Msg("[10:44] right after the v1.21 deploy finished. login fully broken "
+            Msg("[10:44] right after the 10:38 deploy finished. login fully broken "
                 "on web, mobile, and the CLI"),
-            Msg("[10:45] sentry events: `unknown_oauth_provider: github` — "
-                "11k events in last 5 min. https://sentry.io/issue/PROD-9821 (fake)"),
-            Msg("[10:46] starting rollback to v1.20.4 via spinnaker. ETA 4 min"),
+            Msg("[10:45] sentry events: `TokenExpiredError: jwt expired` — 11k "
+                "events in last 5 min, on tokens issued seconds earlier. "
+                "https://sentry.io/issue/PROD-9821 (fake)"),
+            Msg("[10:46] starting rollback to the prior release via spinnaker. ETA 4 min"),
             # Thread on the rollback message (index 5)
-            Msg("[10:47] did v1.21 ship any DB migrations? need to know if rollback is safe",
+            Msg("[10:47] did the deploy ship any DB migrations? need to know if rollback is safe",
                 reply_to=5),
             Msg("[10:47] no. checked the migrations dir — last one was 2 weeks ago. "
                 "rollback is clean", reply_to=5),
             Msg("[10:48] confirmed — no schema drift, rollback proceeding", reply_to=5),
             # Back to main thread
-            Msg("[10:50] FOUND IT — `auth.providers.github.production` config schema "
-                "changed in v1.21 (PR #1234). we're still passing `clientId` at the "
-                "top level instead of nested under `clientCredentials`. so the "
-                "provider registration silently no-ops on boot, then every login "
-                "request 401s with `unknown_oauth_provider`"),
-            Msg("[10:51] fix is a 3-line app-config.production.yaml change. PR #1241 "
-                "out for review"),
-            Msg("[10:53] PR #1241 merged + deployed. error rate dropping"),
+            Msg("[10:50] FOUND IT — `JWT_ACCESS_EXPIRATION_MINUTES` got set to 0 "
+                "in `src/config/config.js` last sprint. every freshly-minted "
+                "access token expires the moment it's signed, so "
+                "`src/middlewares/auth.js` 401s on the very next request. the "
+                "framing in the PR was 'tighten expiry per security review' but "
+                "the env-var override wasn't actually set in prod. reverting now."),
+            Msg("[10:51] fix is a 1-line revert of the default in "
+                "`src/config/config.js` — back to 30 minutes. PR up for review"),
+            Msg("[10:53] PR merged + deployed. error rate dropping"),
             Msg("[10:55] ✅ all clear. 401 rate back to baseline (~3/min vs. 11k/min "
                 "at peak). full RCA in linear ENG-2104 by EOD tomorrow"),
-            Msg("[10:56] post-mortem questions for the RCA: (1) why did v1.21 ship "
-                "without an integration test for github oauth? (2) why isn't "
-                "auth-config in CODEOWNERS — @alice owns that area but wasn't paged"),
-            Msg("[11:02] the deeper miss: the v1.21 ADR called out the schema "
-                "change but we didn't cross-reference our deployed configs. "
-                "see ADR-042 in notion"),
+            Msg("[10:56] post-mortem questions for the RCA: (1) why did this ship "
+                "without an integration test exercising `src/middlewares/auth.js` "
+                "end-to-end? (2) CODEOWNERS *did* match `src/config/config.js` to "
+                "@alice-platform — why didn't the review block?"),
+            Msg("[11:02] the deeper miss: ADR-0001 explicitly calls out 0/negative "
+                "`JWT_ACCESS_EXPIRATION_MINUTES` as an anti-pattern that should be "
+                "validated in CI, but we never wrote that check. tracking in the RCA."),
             # A separate thread on the FOUND IT message (now index 9)
             Msg("[10:51] do we have a regression test for this? feels like exactly "
                 "the kind of break a smoke test should catch", reply_to=9),
-            Msg("[10:52] no integration coverage for oauth provider config currently. "
+            Msg("[10:52] no integration coverage for `src/middlewares/auth.js` + "
+                "`src/services/token.service.js` against a real config currently. "
                 "putting it in the RCA action items", reply_to=9),
         ],
     ),
