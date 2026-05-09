@@ -81,3 +81,44 @@ html, body {
 .shimmer {
   animation: shimmer 2.4s ease-in-out infinite;
 }
+
+/* ─── animations for the BEFORE/AFTER impact slide ─── */
+
+/* Red dot blink on the BEFORE panel header — feels alarming. */
+@keyframes alert-blink {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+.alert-blink {
+  animation: alert-blink 1.4s ease-in-out infinite;
+}
+
+/* Faint horizontal jitter on the chaotic-tabs list — restless feel.
+   Each row gets a different animation-delay so they don't move in sync. */
+@keyframes jitter {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-1px); }
+  75%      { transform: translateX(1px); }
+}
+.jitter-row {
+  animation: jitter 4s ease-in-out infinite;
+}
+
+/* Slow pulse-ring on the AFTER bot avatar — alive/breathing. */
+@keyframes bot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0.45); }
+  50%      { box-shadow: 0 0 0 8px rgba(29, 185, 84, 0); }
+}
+.bot-pulse {
+  animation: bot-pulse 2.5s ease-in-out infinite;
+}
+
+/* Soft green glow cycling through the citation chips — feels like the
+   AI is fanning out across sources. Stagger via inline animation-delay. */
+@keyframes citation-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); }
+  50%      { box-shadow: 0 0 10px 2px rgba(29, 185, 84, 0.45); }
+}
+.citation-glow {
+  animation: citation-glow 2.8s ease-in-out infinite;
+}
