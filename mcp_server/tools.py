@@ -872,6 +872,109 @@ async def who_owns(path: str, repo: str | None = None) -> dict[str, Any]:
 # --- diagnose_incident ----------------------------------------------------
 
 
+async def create_slack_channel(
+    name: str,
+    topic: str | None = None,
+    purpose: str | None = None,
+    invite: list[str] | None = None,
+    initial_message: str | None = None,
+) -> dict[str, Any]:
+    """Create a Slack channel and (optionally) seed it with a topic +
+    invitees + opening message.
+
+    Idempotent: if a channel with this name already exists, returns the
+    existing channel's metadata instead of failing.
+
+    Auto-invites whatever `DEMO_INVITE_USERS` resolves to in `.env`
+    (Chetan + Henning by default) on top of any extras passed via `invite`.
+    Good demo move: the AI agent spins up a fresh #incident-* channel
+    on detection and pages the on-call rotation in one tool call.
+
+    Args:
+      name:    channel name (without leading #). Slack lower-cases.
+      topic:   sets the channel topic (sev / status / one-line summary)
+      purpose: sets the channel purpose (longer context)
+      invite:  extra Slack user IDs to invite, on top of DEMO_INVITE_USERS
+      initial_message: optional opening message posted by the bot
+
+    Returns: {ok, name, channel_id, url, created (bool — false if it
+    already existed), invited (list of user_ids), initial_message_ts}
+    """
+    cfg = STATE.cfg
+    assert cfg is not None
+    if not cfg.slack_bot_token:
+        raise ValueError(
+            "SLACK_BOT_TOKEN is not set in .env — needed for create_slack_channel",
+        )
+
+    # Build the invite list: DEMO_INVITE_USERS env + caller-supplied extras.
+    # Both sources are optional; we only call invite_to_channel if we
+    # end up with at least one user.
+    import os
+    raw_default = os.getenv("DEMO_INVITE_USERS") or os.getenv("DEMO_INVITE_USER") or ""
+    default_ids = [u.strip() for u in raw_default.split(",") if u.strip()]
+    invite_ids = list(dict.fromkeys(default_ids + (invite or [])))  # dedupe, preserve order
+
+    from indexer.slack_fetcher import Slack, SlackError
+
+    async with Slack(cfg.slack_bot_token) as sl:
+        ws = await sl.workspace_ref()
+
+        # create_channel() in slack_fetcher already handles the
+        # name_taken case by returning the existing channel.
+        existed_already = False
+        try:
+            channel = await sl.create_channel(name)
+        except SlackError as e:
+            raise ValueError(f"slack create_channel failed: {e.code}") from e
+
+        # If it already had members > 1 we know we're not the first.
+        # (Slack auto-adds the creating bot as the only initial member,
+        # so num_members >= 2 means humans were already invited before.)
+        existed_already = (channel.get("num_members") or 0) > 1
+
+        if topic:
+            try:
+                await sl.set_channel_topic(channel["id"], topic)
+            except SlackError as e:
+                # Non-fatal — keep going if topic-setting fails.
+                pass
+
+        # Best-effort invites. Slack returns `already_in_channel` for
+        # existing members, which our wrapper swallows.
+        invited_ok: list[str] = []
+        if invite_ids:
+            try:
+                await sl.invite_to_channel(channel["id"], invite_ids)
+                invited_ok = invite_ids
+            except SlackError as e:
+                # Don't fail the whole call if invite fails — channel
+                # exists, agent can retry. Surface in the response.
+                pass
+
+        initial_ts: str | None = None
+        if initial_message:
+            try:
+                resp = await sl.post_message(channel["id"], initial_message)
+                initial_ts = resp.get("ts")
+            except SlackError:
+                pass
+
+    permalink = (
+        f"https://{ws.team_domain}.slack.com/archives/{channel['id']}"
+    )
+
+    return {
+        "ok": True,
+        "name": channel.get("name", name),
+        "channel_id": channel["id"],
+        "url": permalink,
+        "created": not existed_already,
+        "invited": invited_ok,
+        "initial_message_ts": initial_ts,
+    }
+
+
 async def post_to_slack(
     channel: str,
     text: str,

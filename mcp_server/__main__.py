@@ -172,6 +172,33 @@ async def diagnose_incident(symptom: str) -> dict:
 
 
 @mcp.tool()
+async def create_slack_channel(
+    name: str,
+    topic: str | None = None,
+    purpose: str | None = None,
+    invite: list[str] | None = None,
+    initial_message: str | None = None,
+) -> dict:
+    """Create a Slack channel (or return the existing one with that name).
+
+    Useful when an incident is detected and the agent wants to spin up
+    a fresh `#incident-YYYY-MM-DD-<short-name>` tracking channel on the
+    fly. Auto-invites the team (DEMO_INVITE_USERS in .env) plus any IDs
+    in `invite`, optionally sets a topic, and optionally posts an
+    initial message. Idempotent on the channel name.
+
+    Returns {ok, name, channel_id, url, created, invited, initial_message_ts}.
+    """
+    return await T.create_slack_channel(
+        name=name,
+        topic=topic,
+        purpose=purpose,
+        invite=invite,
+        initial_message=initial_message,
+    )
+
+
+@mcp.tool()
 async def post_to_slack(
     channel: str,
     text: str,
