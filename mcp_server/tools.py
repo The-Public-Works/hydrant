@@ -921,12 +921,24 @@ async def create_slack_channel(
         ws = await sl.workspace_ref()
 
         # create_channel() in slack_fetcher already handles the
-        # name_taken case by returning the existing channel.
+        # name_taken case by returning the existing channel — but it
+        # doesn't distinguish active vs archived. If the existing
+        # channel is archived we'd return something the caller can't
+        # post to (the bot can't unarchive without being a member,
+        # and it can't add itself). Fail loud so the agent picks a
+        # different name instead.
         existed_already = False
         try:
             channel = await sl.create_channel(name)
         except SlackError as e:
             raise ValueError(f"slack create_channel failed: {e.code}") from e
+
+        if channel.get("is_archived"):
+            raise ValueError(
+                f"channel #{name!r} exists but is archived — "
+                f"pick a different name (e.g. add today's date) so "
+                f"create_slack_channel returns a fresh, postable channel."
+            )
 
         # If it already had members > 1 we know we're not the first.
         # (Slack auto-adds the creating bot as the only initial member,
@@ -941,24 +953,41 @@ async def create_slack_channel(
                 pass
 
         # Best-effort invites. Slack returns `already_in_channel` for
-        # existing members, which our wrapper swallows.
+        # existing members, which our wrapper swallows. Other errors
+        # are surfaced in the response (`invite_error`) so the agent
+        # — and the human watching the demo — can see what went wrong
+        # rather than silently ending up with an empty channel.
         invited_ok: list[str] = []
-        if invite_ids:
+        invite_error: str | None = None
+        if not invite_ids:
+            invite_error = (
+                "no users to invite — set DEMO_INVITE_USERS in .env or "
+                "pass `invite=[...]` explicitly. If DEMO_INVITE_USERS "
+                "is set but not visible here, restart the MCP server "
+                "so the env reloads."
+            )
+        else:
             try:
                 await sl.invite_to_channel(channel["id"], invite_ids)
                 invited_ok = invite_ids
             except SlackError as e:
-                # Don't fail the whole call if invite fails — channel
-                # exists, agent can retry. Surface in the response.
-                pass
+                invite_error = (
+                    f"slack invite failed: {e.code} "
+                    f"(tried to invite {invite_ids})"
+                )
+            except Exception as e:
+                invite_error = f"invite raised {type(e).__name__}: {e}"
 
         initial_ts: str | None = None
+        initial_error: str | None = None
         if initial_message:
             try:
                 resp = await sl.post_message(channel["id"], initial_message)
                 initial_ts = resp.get("ts")
-            except SlackError:
-                pass
+            except SlackError as e:
+                initial_error = f"initial post failed: {e.code}"
+            except Exception as e:
+                initial_error = f"initial post raised {type(e).__name__}: {e}"
 
     permalink = (
         f"https://{ws.team_domain}.slack.com/archives/{channel['id']}"
@@ -971,7 +1000,9 @@ async def create_slack_channel(
         "url": permalink,
         "created": not existed_already,
         "invited": invited_ok,
+        "invite_error": invite_error,
         "initial_message_ts": initial_ts,
+        "initial_error": initial_error,
     }
 
 

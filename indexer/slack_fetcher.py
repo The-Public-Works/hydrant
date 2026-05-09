@@ -267,6 +267,19 @@ class Slack:
             "conversations.setTopic", channel=channel_id, topic=topic,
         )
 
+    async def unarchive_channel(self, channel_id: str) -> dict:
+        """Unarchive a channel. Idempotent: if the channel is already
+        active, Slack returns `not_archived` which we swallow.
+
+        Requires `channels:manage` (public) or `groups:write` (private).
+        """
+        try:
+            return await self._post("conversations.unarchive", channel=channel_id)
+        except SlackError as e:
+            if e.code == "not_archived":
+                return e.data
+            raise
+
     async def invite_to_channel(self, channel_id: str, user_ids: list[str]) -> dict:
         """Invite one or more users to a channel.
 
