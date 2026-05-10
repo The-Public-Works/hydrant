@@ -108,7 +108,7 @@ const SPEAKER_NOTES: Record<SlideId, string[]> = {
     "PAUSE for ~3 seconds before talking — let jurors absorb the contrast.",
     "OPEN (read aloud): 'Here's the shift we're delivering.'",
     "POINT at the BEFORE panel: 'Five tools open. Twenty-five minutes. One engineer hunting alone — and whatever they figure out dies in DMs.'",
-    "POINT at the AFTER panel: 'One channel. Under sixty seconds. The whole on-call team has the answer — and Linear has the audit trail.'",
+    "POINT at the AFTER panel: 'One channel. Around two minutes. The whole on-call team has the answer — and Linear has the audit trail.'",
     "POINT at the metric ribbon: 'Every dimension shifts — time, team context, audit trail, cognitive load.'",
     "CLOSE: 'Linear has the receipts. That's how we beat closed-app competitors that hand you an answer with no proof.'",
     "Pace cue: ~30 seconds. The visual does the heavy lifting — don't over-explain.",
@@ -123,13 +123,15 @@ const SPEAKER_NOTES: Record<SlideId, string[]> = {
   ],
   demo: [
     "OPEN (read aloud): 'Let me show you this happening live.'",
-    "[SWITCH TO CLINE on screen. Have the prompt pre-copied to clipboard. Start the on-screen stopwatch the moment you press enter.]",
+    "[CLICK 'Start' on the slide-6 stopwatch BEFORE switching to Cline. The timer keeps running across slide-changes (it's localStorage-backed) so you can come back here at the end to see the final time.]",
+    "[SWITCH TO CLINE. Paste the demo prompt from clipboard. Press enter.]",
     "NARRATE STEP 1: 'A new incident channel just opened — auth is throwing 401s on production.'",
     "NARRATE STEP 2: 'One prompt — into Cline, our sponsor's AI agent.'",
     "NARRATE STEP 3 (while Cline runs): 'Cline is calling our MCP server. It fans out across Slack, Linear, and GitHub in parallel.'",
     "NARRATE STEP 4: 'Synthesizing context — past Slack thread, Linear RCA, GitHub runbook, the breaking PR, the owner to page.'",
     "NARRATE STEP 5 (the punchline): 'And the synthesis posts back to the incident channel. The whole on-call team has the answer — not just whoever asked.'",
-    "STOPWATCH OFF: 'Under sixty seconds. End-to-end.'",
+    "[NAVIGATE BACK to slide 6. CLICK 'Stop' on the stopwatch — the digits turn green and lock at the final time.]",
+    "READ the time aloud (e.g.): 'Around two minutes. End-to-end.' If it went over 2 minutes, own it: 'a little long on this run — the API was a bit slow today, but the synthesis is right.'",
     "If live fails: switch to the backup video silently. Don't apologise, don't narrate the failure — just resume narrating from STEP 3 over the recording.",
   ],
   scale: [
@@ -685,17 +687,191 @@ function SlideDemo() {
         ))}
       </div>
 
-      <div
-        className="mt-10 flex items-center gap-3 rounded-xl px-6 py-4"
-        style={{ background: "rgba(15,122,56,0.18)", border: "1px solid rgba(29,185,84,0.3)" }}
-      >
-        <Clock size={18} className="text-spotify" />
-        <p className="text-base text-ink">
-          <span className="font-semibold">End-to-end on stage: under 60 seconds.</span>{" "}
-          <span className="text-ink-mid italic">
-            The whole on-call team gets the context — not just the asker.
-          </span>
-        </p>
+      <DemoStopwatch />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Live-demo stopwatch — sits at the bottom of slide 6.
+//
+// Why it exists: during the recording the presenter starts the stopwatch,
+// switches to Cline + Slack to run the actual demo, then comes back to
+// slide 6 to land "Around 2 minutes. End-to-end." The stopwatch needs
+// to keep counting accurately even though the SlideDemo component
+// unmounts when the user navigates away.
+//
+// We achieve that by storing the *start timestamp* (not "elapsed
+// seconds") in localStorage. On re-mount we restore the timestamp and
+// `Date.now() - startedAt` always gives the right answer, regardless of
+// how long the slide was off-screen or whether the browser was even
+// open. Cleared via the Reset button or by closing browser data.
+// ─────────────────────────────────────────────────────────────────────────
+
+const STOPWATCH_LS_KEY = "ctx-demo-stopwatch";
+
+function DemoStopwatch() {
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [stoppedAt, setStoppedAt] = useState<number | null>(null);
+  // Bumped every 100ms while running purely to force re-render — the
+  // displayed elapsed time is computed from `Date.now()` directly.
+  const [, setTick] = useState(0);
+
+  // Restore from localStorage on mount.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(STOPWATCH_LS_KEY);
+      if (!raw) return;
+      const { start, stop } = JSON.parse(raw) as {
+        start: number | null;
+        stop: number | null;
+      };
+      if (typeof start === "number") setStartedAt(start);
+      if (typeof stop === "number") setStoppedAt(stop);
+    } catch {
+      // corrupt JSON — ignore, the stopwatch starts fresh
+    }
+  }, []);
+
+  // Re-render every 100ms while the timer is running.
+  useEffect(() => {
+    if (startedAt === null || stoppedAt !== null) return;
+    const id = setInterval(() => setTick((t) => t + 1), 100);
+    return () => clearInterval(id);
+  }, [startedAt, stoppedAt]);
+
+  const persist = (start: number | null, stop: number | null) => {
+    if (typeof window === "undefined") return;
+    try {
+      if (start === null && stop === null) {
+        window.localStorage.removeItem(STOPWATCH_LS_KEY);
+      } else {
+        window.localStorage.setItem(
+          STOPWATCH_LS_KEY,
+          JSON.stringify({ start, stop }),
+        );
+      }
+    } catch {
+      // storage full / disabled — gracefully no-op
+    }
+  };
+
+  const handleStart = () => {
+    const t = Date.now();
+    setStartedAt(t);
+    setStoppedAt(null);
+    persist(t, null);
+  };
+
+  const handleStop = () => {
+    const t = Date.now();
+    setStoppedAt(t);
+    persist(startedAt, t);
+  };
+
+  const handleReset = () => {
+    setStartedAt(null);
+    setStoppedAt(null);
+    persist(null, null);
+  };
+
+  const elapsedMs =
+    startedAt === null
+      ? 0
+      : stoppedAt !== null
+      ? stoppedAt - startedAt
+      : Date.now() - startedAt;
+
+  const seconds = Math.floor(elapsedMs / 1000);
+  const tenths = Math.floor((elapsedMs % 1000) / 100);
+  const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
+  const ss = String(seconds % 60).padStart(2, "0");
+
+  const isReady = startedAt === null;
+  const isRunning = startedAt !== null && stoppedAt === null;
+  const isStopped = stoppedAt !== null;
+
+  // Color of the digits: dim when ready, white when running, green when
+  // stopped (and red when running past 2 min — visual reminder of the
+  // promise we're trying to keep).
+  const overTarget = isRunning && elapsedMs >= 120_000;
+  const numberColor = isStopped
+    ? SPOTIFY
+    : overTarget
+    ? "#E5484D"
+    : isRunning
+    ? "#FFFFFF"
+    : "#8A8A8A";
+
+  return (
+    <div className="mt-8 rounded-2xl border-2 border-spotify/30 bg-bg-panel p-5 shadow-glow">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-spotify">
+          <Clock size={14} />
+          Live-demo stopwatch
+        </div>
+        <div className="text-[11px] font-mono text-ink-dim">
+          {isReady && "ready · target <2 min"}
+          {isRunning && (overTarget ? "⚠ over target" : "● running")}
+          {isStopped && "✓ done"}
+        </div>
+      </div>
+
+      <div className="mt-2 flex items-baseline justify-center gap-1 font-display tabular-nums leading-none">
+        <span
+          className="text-7xl font-bold transition-colors duration-200"
+          style={{ color: numberColor }}
+        >
+          {mm}:{ss}
+        </span>
+        <span
+          className="text-3xl font-bold transition-colors duration-200"
+          style={{ color: numberColor, opacity: 0.55 }}
+        >
+          .{tenths}
+        </span>
+      </div>
+
+      <div className="mt-4 flex justify-center gap-2">
+        {isReady && (
+          <button
+            type="button"
+            onClick={handleStart}
+            className="inline-flex items-center gap-1.5 rounded-md px-5 py-2 text-xs font-semibold text-black transition hover:opacity-90"
+            style={{ background: SPOTIFY }}
+          >
+            Start
+          </button>
+        )}
+        {isRunning && (
+          <button
+            type="button"
+            onClick={handleStop}
+            className="inline-flex items-center gap-1.5 rounded-md border border-danger/50 px-5 py-2 text-xs font-semibold text-danger transition hover:bg-danger/10"
+          >
+            Stop
+          </button>
+        )}
+        {isStopped && (
+          <>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="inline-flex items-center gap-1.5 rounded-md border border-white/15 px-4 py-2 text-xs font-medium text-ink-mid transition hover:border-white/30 hover:text-ink"
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              onClick={handleStart}
+              className="inline-flex items-center gap-1.5 rounded-md px-5 py-2 text-xs font-semibold text-black transition hover:opacity-90"
+              style={{ background: SPOTIFY }}
+            >
+              Start again
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -717,7 +893,7 @@ function SlideImpact() {
         </span>
         <br />
         to{" "}
-        <span style={{ color: SPOTIFY }}>one channel and &lt;60 seconds.</span>
+        <span style={{ color: SPOTIFY }}>one channel and ~2 minutes.</span>
       </h2>
 
       <div className="mt-10 grid grid-cols-1 gap-5 lg:grid-cols-[1fr_auto_1.05fr] lg:items-stretch">
@@ -731,7 +907,7 @@ function SlideImpact() {
       {/* metric ribbon — 4 dimensions of shift, not just time. */}
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          { label: "Time",           before: "~25 min",        after: "<60 sec" },
+          { label: "Time",           before: "~25 min",        after: "~2 min" },
           { label: "Team context",   before: "One engineer",   after: "Whole channel" },
           { label: "Audit trail",    before: "Nothing logged", after: "Linear ticket" },
           { label: "Cognitive load", before: "5 tabs + grep",  after: "1 message" },
@@ -850,7 +1026,7 @@ function AfterPanel() {
       </div>
 
       <p className="mt-4 text-xs italic leading-relaxed text-ink-dim">
-        &lt;60 seconds. Whole channel has context. Linear has the audit trail.
+        ~2 minutes. Whole channel has context. Linear has the audit trail.
       </p>
     </div>
   );
