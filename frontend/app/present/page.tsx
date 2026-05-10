@@ -646,75 +646,70 @@ function Bullet({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SlideDemo() {
-  const steps = [
-    { n: "1", t: "New incident in Slack", d: "#incident-auth-down · 2 min ago · nobody knows yet", I: AlertTriangle, red: true },
-    { n: "2", t: "One prompt to Cline",   d: "“What do we know about this?”",                       I: MessageSquare },
-    { n: "3", t: "MCP fans out",          d: "Slack · Linear · GitHub — in parallel",               I: Network },
-    { n: "4", t: "Synthesized context",   d: "Past incident · runbook · ticket · fix · owner",       I: GitPullRequestArrow },
-    { n: "5", t: "Posted back to channel",d: "Whole team gets context, not just the asker",          I: Send },
-  ];
-  return (
-    <div>
-      <Kicker>Live demo</Kicker>
-      <h2 className="mt-4 flex items-center gap-3 font-display text-5xl font-bold text-ink lg:text-6xl">
-        <PlayCircle size={42} className="text-spotify" />
-        New incident. Watch the team get context.
-      </h2>
+// 5 storyboard cards. `activeFrom` / `activeUntil` are seconds from
+// the stopwatch start — each card is "inactive" until its window opens,
+// "active" within its window (pulsing), and "done" after it closes.
+// Times calibrated against a real Cline run that completes in ~2 min.
+type DemoStep = {
+  n: string;
+  t: string;
+  d: string;
+  I: LucideIcon;
+  red?: boolean;
+  activeFrom: number;
+  activeUntil: number;
+};
 
-      <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-5">
-        {steps.map((s) => (
-          <div
-            key={s.n}
-            className="relative flex flex-col rounded-xl border border-white/10 bg-bg-card p-5"
-          >
-            <div
-              className="absolute inset-x-0 top-0 h-[2px]"
-              style={{ background: s.red ? "#E5484D" : SPOTIFY }}
-            />
-            <div className="flex items-center justify-between">
-              <span
-                className="font-display text-3xl font-bold"
-                style={{ color: s.red ? "#E5484D" : SPOTIFY }}
-              >
-                {s.n}
-              </span>
-              <s.I size={20} className={s.red ? "text-danger" : "text-spotify"} />
-            </div>
-            <div className="mt-5 text-base font-semibold text-ink">{s.t}</div>
-            <div className="mt-2 text-sm leading-relaxed text-ink-mid">{s.d}</div>
-          </div>
-        ))}
-      </div>
+const DEMO_STEPS: DemoStep[] = [
+  { n: "1", t: "New incident in Slack",   d: "#incident-auth-down · just paged",                   I: AlertTriangle,       red: true, activeFrom:   0, activeUntil:  3 },
+  { n: "2", t: "One prompt to Cline",     d: "“Diagnose, open ticket, post to channel”",            I: MessageSquare,                  activeFrom:   1, activeUntil:  6 },
+  { n: "3", t: "MCP fans out",            d: "Slack · Linear · GitHub — in parallel",               I: Network,                        activeFrom:   5, activeUntil: 63 },
+  { n: "4", t: "Synthesized context",     d: "Past incident · runbook · ticket · fix · owner",      I: GitPullRequestArrow,            activeFrom:  63, activeUntil: 96 },
+  { n: "5", t: "Posted back to channel",  d: "Whole team gets context, not just the asker",         I: Send,                           activeFrom:  96, activeUntil: 130 },
+];
 
-      <DemoStopwatch />
-    </div>
-  );
-}
+// Tool-call timeline shown in the stream below the storyboard. Each
+// event fades in when `elapsedSec >= at`. Calibrated to the actual
+// Cline run captured for this demo (see GUIDE.md for the source log).
+type StreamEvent = {
+  at: number; // seconds from stopwatch start
+  kind: "call" | "result" | "system";
+  text: string;
+};
 
-// ─────────────────────────────────────────────────────────────────────────
-// Live-demo stopwatch — sits at the bottom of slide 6.
-//
-// Why it exists: during the recording the presenter starts the stopwatch,
-// switches to Cline + Slack to run the actual demo, then comes back to
-// slide 6 to land "Around 2 minutes. End-to-end." The stopwatch needs
-// to keep counting accurately even though the SlideDemo component
-// unmounts when the user navigates away.
-//
-// We achieve that by storing the *start timestamp* (not "elapsed
-// seconds") in localStorage. On re-mount we restore the timestamp and
-// `Date.now() - startedAt` always gives the right answer, regardless of
-// how long the slide was off-screen or whether the browser was even
-// open. Cleared via the Reset button or by closing browser data.
-// ─────────────────────────────────────────────────────────────────────────
+const TOOL_STREAM: StreamEvent[] = [
+  { at:   0, kind: "system", text: "Incident detected — #incident-2026-05-09-auth-401s" },
+  { at:   2, kind: "system", text: "Cline received prompt — reading docs/runbooks/incident-flow.md" },
+  { at:   6, kind: "call",   text: 'mcp.get_runbook("incident flow", k=5)' },
+  { at:   8, kind: "result", text: "5 chunks · docs/runbooks/incident-flow.md  (842 ms)" },
+  { at:  10, kind: "call",   text: "mcp.get_node(282)" },
+  { at:  12, kind: "result", text: "Full incident-flow.md loaded  (210 ms)" },
+  { at:  15, kind: "call",   text: 'mcp.diagnose_incident("Auth 401s after deploy")' },
+  { at:  24, kind: "result", text: "6 similar incidents · 2 runbook hits · owner @chetan-platform  (8.4 s)" },
+  { at:  27, kind: "call",   text: "mcp.trace_issue(#3, repo=Henning-1/...)" },
+  { at:  36, kind: "result", text: "Issue context · 8 suspect files · top: src/config/config.js  (7.1 s)" },
+  { at:  40, kind: "call",   text: "mcp.get_pr_diff(#2)" },
+  { at:  47, kind: "result", text: "src/config/config.js — default(30) → default(0)  (4.2 s)" },
+  { at:  51, kind: "call",   text: "mcp.git_blame(src/config/config.js, L30-35)" },
+  { at:  55, kind: "result", text: "commit 38e7e901… by Henning  (310 ms)" },
+  { at:  58, kind: "call",   text: "mcp.who_owns(src/config/config.js)" },
+  { at:  60, kind: "result", text: "@chetan-platform · CODEOWNERS rule *  (47 ms)" },
+  { at:  63, kind: "system", text: "Synthesizing diagnosis with citations…" },
+  { at:  88, kind: "call",   text: 'mcp.create_linear_issue("Auth 401s — JWT expiry regression")' },
+  { at:  96, kind: "result", text: "CLI-36 opened ↗" },
+  { at: 101, kind: "call",   text: 'mcp.create_slack_channel("incident-…-auth-401s-HHMMSS")' },
+  { at: 113, kind: "result", text: "Channel created · 2 users invited · synthesis posted ↗" },
+  { at: 118, kind: "system", text: "✓ Done — whole on-call team has context." },
+];
 
 const STOPWATCH_LS_KEY = "ctx-demo-stopwatch";
 
-function DemoStopwatch() {
+function SlideDemo() {
+  // Lifted state — both the stopwatch (controls) and the visualization
+  // (storyboard active states + tool stream) read from the same elapsed
+  // time. Persisted via localStorage so it survives slide navigation.
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [stoppedAt, setStoppedAt] = useState<number | null>(null);
-  // Bumped every 100ms while running purely to force re-render — the
-  // displayed elapsed time is computed from `Date.now()` directly.
   const [, setTick] = useState(0);
 
   // Restore from localStorage on mount.
@@ -734,10 +729,10 @@ function DemoStopwatch() {
     }
   }, []);
 
-  // Re-render every 100ms while the timer is running.
+  // Re-render every 200ms while running.
   useEffect(() => {
     if (startedAt === null || stoppedAt !== null) return;
-    const id = setInterval(() => setTick((t) => t + 1), 100);
+    const id = setInterval(() => setTick((t) => t + 1), 200);
     return () => clearInterval(id);
   }, [startedAt, stoppedAt]);
 
@@ -763,13 +758,11 @@ function DemoStopwatch() {
     setStoppedAt(null);
     persist(t, null);
   };
-
   const handleStop = () => {
     const t = Date.now();
     setStoppedAt(t);
     persist(startedAt, t);
   };
-
   const handleReset = () => {
     setStartedAt(null);
     setStoppedAt(null);
@@ -782,7 +775,207 @@ function DemoStopwatch() {
       : stoppedAt !== null
       ? stoppedAt - startedAt
       : Date.now() - startedAt;
+  const elapsedSec = elapsedMs / 1000;
+  const isRunning = startedAt !== null && stoppedAt === null;
 
+  return (
+    <div>
+      <Kicker>Live demo</Kicker>
+      <h2 className="mt-4 flex items-center gap-3 font-display text-5xl font-bold text-ink lg:text-6xl">
+        <PlayCircle size={42} className="text-spotify" />
+        New incident. Watch the team get context.
+      </h2>
+
+      {/* Storyboard cards — each lights up when elapsedSec is in its window. */}
+      <div className="mt-8 grid grid-cols-1 gap-3 md:grid-cols-5">
+        {DEMO_STEPS.map((s) => (
+          <StoryboardCard key={s.n} step={s} elapsedSec={elapsedSec} isRunning={isRunning} />
+        ))}
+      </div>
+
+      {/* Side-by-side: tool stream on the left, stopwatch on the right. */}
+      <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-stretch">
+        <ToolStream elapsedSec={elapsedSec} isRunning={isRunning} />
+        <DemoStopwatch
+          elapsedMs={elapsedMs}
+          startedAt={startedAt}
+          stoppedAt={stoppedAt}
+          onStart={handleStart}
+          onStop={handleStop}
+          onReset={handleReset}
+        />
+      </div>
+    </div>
+  );
+}
+
+function StoryboardCard({
+  step,
+  elapsedSec,
+  isRunning,
+}: {
+  step: DemoStep;
+  elapsedSec: number;
+  isRunning: boolean;
+}) {
+  // Three states driven by elapsed time:
+  //   ready   — stopwatch hasn't started, or elapsed < activeFrom
+  //   active  — activeFrom <= elapsed < activeUntil (pulsing)
+  //   done    — elapsed >= activeUntil (solid green ✓)
+  const phase =
+    elapsedSec === 0 && !isRunning
+      ? "ready"
+      : elapsedSec >= step.activeUntil
+      ? "done"
+      : elapsedSec >= step.activeFrom
+      ? "active"
+      : "ready";
+
+  // Step 1 uses red (it's the alarming "incident detected" step) — we
+  // keep it red even when active/done because the panic-color carries
+  // narrative meaning. All other steps follow the active/done palette.
+  const accent = step.red ? "#E5484D" : SPOTIFY;
+  const numberColor = step.red ? "#E5484D" : SPOTIFY;
+  const iconClass = step.red ? "text-danger" : "text-spotify";
+
+  const opacity = phase === "ready" ? 0.45 : 1;
+  const borderClass =
+    phase === "active"
+      ? "border-spotify/70"
+      : phase === "done"
+      ? "border-spotify/40"
+      : "border-white/10";
+  const ringClass = phase === "active" ? "shadow-glow" : "";
+
+  return (
+    <div
+      className={`relative flex flex-col rounded-xl border bg-bg-card p-4 transition-opacity duration-300 ${borderClass} ${ringClass}`}
+      style={{ opacity }}
+    >
+      <div
+        className={`absolute inset-x-0 top-0 h-[2px] ${
+          phase === "active" ? "alert-blink" : ""
+        }`}
+        style={{ background: accent }}
+      />
+      {/* Done checkmark */}
+      {phase === "done" && !step.red && (
+        <div
+          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-black"
+          style={{ background: SPOTIFY }}
+          aria-hidden="true"
+        >
+          ✓
+        </div>
+      )}
+      <div className="flex items-center justify-between">
+        <span
+          className="font-display text-2xl font-bold"
+          style={{ color: numberColor }}
+        >
+          {step.n}
+        </span>
+        <step.I size={18} className={iconClass} />
+      </div>
+      <div className="mt-3 text-sm font-semibold text-ink">{step.t}</div>
+      <div className="mt-1.5 text-[11px] leading-relaxed text-ink-mid">
+        {step.d}
+      </div>
+    </div>
+  );
+}
+
+function ToolStream({
+  elapsedSec,
+  isRunning,
+}: {
+  elapsedSec: number;
+  isRunning: boolean;
+}) {
+  // Auto-scroll to bottom as new events come in.
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [elapsedSec]);
+
+  const visible = TOOL_STREAM.filter((e) => elapsedSec >= e.at);
+  const total = TOOL_STREAM.length;
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/40 p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-spotify">
+          <span
+            className={`h-1.5 w-1.5 rounded-full bg-spotify ${
+              isRunning ? "alert-blink" : ""
+            }`}
+          />
+          ctx-mcp · tool stream
+        </div>
+        <div className="font-mono text-[10px] text-ink-dim">
+          {visible.length}/{total} events
+        </div>
+      </div>
+      <div
+        ref={scrollRef}
+        className="mt-3 h-[180px] space-y-1 overflow-y-auto font-mono text-[11px] leading-snug"
+      >
+        {visible.length === 0 && (
+          <div className="italic text-ink-dim">
+            (waiting for stopwatch to start…)
+          </div>
+        )}
+        {visible.map((e, i) => (
+          <div key={i} className="flex gap-2">
+            <span className="shrink-0 text-ink-dim">
+              [{String(Math.floor(e.at)).padStart(3, " ")}s]
+            </span>
+            <span
+              className={
+                e.kind === "call"
+                  ? "text-spotify"
+                  : e.kind === "result"
+                  ? "pl-3 text-ink-mid"
+                  : "italic text-ink"
+              }
+            >
+              {e.text}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Live-demo stopwatch — sits beside the tool-call stream on slide 6.
+//
+// Controlled component: state lives in `SlideDemo` (so the tool stream
+// + storyboard cards can read the same elapsed time). This component
+// just renders the digits + buttons and fires callbacks.
+//
+// The state-persistence machinery (localStorage round-trip via
+// STOPWATCH_LS_KEY) lives in SlideDemo above.
+// ─────────────────────────────────────────────────────────────────────────
+
+function DemoStopwatch({
+  elapsedMs,
+  startedAt,
+  stoppedAt,
+  onStart,
+  onStop,
+  onReset,
+}: {
+  elapsedMs: number;
+  startedAt: number | null;
+  stoppedAt: number | null;
+  onStart: () => void;
+  onStop: () => void;
+  onReset: () => void;
+}) {
   const seconds = Math.floor(elapsedMs / 1000);
   const tenths = Math.floor((elapsedMs % 1000) / 100);
   const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
@@ -805,7 +998,7 @@ function DemoStopwatch() {
     : "#8A8A8A";
 
   return (
-    <div className="mt-8 rounded-2xl border-2 border-spotify/30 bg-bg-panel p-5 shadow-glow">
+    <div className="flex h-full flex-col rounded-2xl border-2 border-spotify/30 bg-bg-panel p-5 shadow-glow">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-spotify">
           <Clock size={14} />
@@ -837,7 +1030,7 @@ function DemoStopwatch() {
         {isReady && (
           <button
             type="button"
-            onClick={handleStart}
+            onClick={onStart}
             className="inline-flex items-center gap-1.5 rounded-md px-5 py-2 text-xs font-semibold text-black transition hover:opacity-90"
             style={{ background: SPOTIFY }}
           >
@@ -847,7 +1040,7 @@ function DemoStopwatch() {
         {isRunning && (
           <button
             type="button"
-            onClick={handleStop}
+            onClick={onStop}
             className="inline-flex items-center gap-1.5 rounded-md border border-danger/50 px-5 py-2 text-xs font-semibold text-danger transition hover:bg-danger/10"
           >
             Stop
@@ -857,14 +1050,14 @@ function DemoStopwatch() {
           <>
             <button
               type="button"
-              onClick={handleReset}
+              onClick={onReset}
               className="inline-flex items-center gap-1.5 rounded-md border border-white/15 px-4 py-2 text-xs font-medium text-ink-mid transition hover:border-white/30 hover:text-ink"
             >
               Reset
             </button>
             <button
               type="button"
-              onClick={handleStart}
+              onClick={onStart}
               className="inline-flex items-center gap-1.5 rounded-md px-5 py-2 text-xs font-semibold text-black transition hover:opacity-90"
               style={{ background: SPOTIFY }}
             >
