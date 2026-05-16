@@ -1,8 +1,8 @@
-# Demo guide — Team Spotify-2
+# Demo guide — Hydrant by The Public Works
 
 > *Cutting incident MTTR with an AI knowledge layer.*
 >
-> Spotify × Cline + 2Hero hackathon · Chetan Singh + Henning
+> Born at the Cline + 2Hero hackathon · Chetan Singh + Henning
 
 This guide is the single artefact to read before running the demo —
 covers what we built, what jurors will see, and the exact prompts to
@@ -34,7 +34,7 @@ The fifth jury question — *"Would you want to meet this team for 20 minutes?"*
 | `/` | Marketing landing — one-page scroll for jurors / sharing |
 | `/present` | 8-slide deck with keyboard nav + slide dots + exit button |
 | `/present?speaker_notes=true` | Same deck, with speaker notes visible |
-| `/demo` | The interactive ctx-mcp chat + graph (existing) |
+| `/demo` | The interactive Hydrant chat + graph (existing) |
 
 Run with `pnpm dev` (port 3000) or `docker compose up frontend`.
 
@@ -217,7 +217,7 @@ Diagnose the auth 401s incident, then post a Slack mrkdwn-formatted
 summary back into channel `incident-2026-05-auth-down` as a NEW message
 (not a thread reply). Use *bold*, _italic_, and <url|label> link
 syntax. Cite the past Slack thread, the Linear RCA, and the runbook
-section. Sign it as "🤖 ctx-mcp synthesis". Reply here with the
+section. Sign it as "🤖 hydrant synthesis". Reply here with the
 permalink.
 ```
 
@@ -372,7 +372,7 @@ cd frontend && pnpm dev &                          # website on :3000
 | --- | --- |
 | MCP tools missing in Cline | Click the refresh icon in MCP Servers panel |
 | Postgres password rejected | Another local postgres on 5432 — `docker stop kdjango-postgres-1` then `docker compose up -d postgres` |
-| Slack post fails | Bot not in channel — `python _invite_now.py` or `/invite @ctx-mcp` |
+| Slack post fails | Bot not in channel — `python _invite_now.py` or `/invite @hydrant` |
 | Voyage rate-limited | Add a payment method on voyageai.com (no charge, lifts to 2k RPM) |
 | Linear `400` on tool call | Hit our team-key/number filter; re-check the GraphQL query in `linear_fetcher.py` |
 

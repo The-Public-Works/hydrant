@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "ctx": {
+    "hydrant": {
       "command": "./bin/run-mcp.sh",
       "args": []
     }

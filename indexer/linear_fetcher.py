@@ -104,7 +104,7 @@ class Linear:
             headers={
                 "Authorization": api_key,
                 "Content-Type": "application/json",
-                "User-Agent": "ctx-mcp-indexer",
+                "User-Agent": "hydrant-indexer",
             },
             timeout=30.0,
         )

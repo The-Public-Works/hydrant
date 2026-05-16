@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Spotify-2 · Spotify Hackathon",
+  title: "Hydrant · by The Public Works",
   description:
-    "Cutting incident MTTR with an AI knowledge layer — Team Spotify-2, Spotify x Cline + 2Hero hackathon",
+    "Cutting incident MTTR with an open-source AI knowledge layer. By The Public Works. Born at the Cline + 2Hero hackathon.",
 };
 
 export default function RootLayout({

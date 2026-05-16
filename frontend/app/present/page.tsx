@@ -82,7 +82,7 @@ const ORDER: SlideId[] = [
 
 const SPEAKER_NOTES: Record<SlideId, string[]> = {
   title: [
-    "OPEN (read aloud): 'Hi — we're Team Spotify-2, Chetan and Henning. We built ctx-mcp for Spotify's Intelligent Context Navigation challenge.'",
+    "OPEN (read aloud): 'Hi — we're The Public Works, Chetan and Henning. We built Hydrant — an open-source AI knowledge layer for incident response. Born at the Cline + 2Hero hackathon.'",
     "HOOK: 'In the next 5 minutes we'll show you how an AI knowledge layer cuts incident MTTR for the on-call engineer — the most exposed person in the company at 2am.'",
     "SETUP next slide: 'Let me start by being specific about who we're helping and why it matters.'",
     "Pace cue: ~15 seconds. Don't linger on this slide — momentum matters.",
@@ -230,7 +230,7 @@ export default function Present() {
             <Sparkles size={16} className="text-black" />
           </div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.25em] text-spotify">
-            Team Spotify-2 · Spotify Challenge
+            Hydrant · by The Public Works
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -350,7 +350,7 @@ function Kicker({ children }: { children: React.ReactNode }) {
 function SlideTitle() {
   return (
     <div className="flex min-h-[72vh] flex-col justify-center">
-      <Kicker>Spotify · Cline + 2Hero · 2026</Kicker>
+      <Kicker>Hydrant · open source</Kicker>
       <h1 className="mt-6 font-display text-6xl font-bold leading-[1.05] text-ink md:text-7xl lg:text-[88px]">
         Cutting incident MTTR
         <br />
@@ -361,7 +361,7 @@ function SlideTitle() {
       </p>
       <div className="mt-12 flex items-center gap-3 text-sm text-ink-dim">
         <Users size={16} />
-        Team Spotify-2 · Chetan Singh + Henning
+        The Public Works · Chetan Singh + Henning
       </div>
     </div>
   );
@@ -912,7 +912,7 @@ function ToolStream({
               isRunning ? "alert-blink" : ""
             }`}
           />
-          ctx-mcp · tool stream
+          hydrant · tool stream
         </div>
         <div className="font-mono text-[10px] text-ink-dim">
           {visible.length}/{total} events
@@ -1175,7 +1175,7 @@ function AfterPanel() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-xs font-semibold text-ink">ctx-mcp</span>
+            <span className="text-xs font-semibold text-ink">hydrant</span>
             <span className="rounded-sm bg-white/10 px-1 py-0 font-mono text-[9px] font-semibold text-ink-dim">
               APP
             </span>
@@ -1346,7 +1346,7 @@ function SlideAsk() {
 
       <div className="rounded-2xl border border-spotify/30 bg-bg-panel p-8 shadow-glow">
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-spotify">
-          <Users size={14} /> Team Spotify-2
+          <Users size={14} /> The Public Works
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-4 border-b border-white/5 pb-6">

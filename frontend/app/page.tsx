@@ -11,7 +11,7 @@
  *
  * Sister pages:
  *   /present  — slide deck used during the live pitch
- *   /demo     — the actual product (ctx-mcp chat + graph)
+ *   /demo     — the actual product (Hydrant chat + graph)
  */
 "use client";
 
@@ -97,9 +97,9 @@ function NavBar() {
             <Sparkles size={16} className="text-black" />
           </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold">Spotify-2</div>
+            <div className="text-sm font-semibold">The Public Works</div>
             <div className="text-[10px] uppercase tracking-widest text-ink-dim">
-              Spotify · Cline + 2Hero
+              Cline + 2Hero hackathon
             </div>
           </div>
         </div>
@@ -140,7 +140,7 @@ function Hero() {
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-spotify/30 bg-spotify/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-spotify">
             <span className="h-1.5 w-1.5 rounded-full bg-spotify shimmer" />
-            Spotify challenge · Intelligent context navigation
+            Open source · AI knowledge layer
           </div>
           <h1 className="mt-6 font-display text-5xl font-bold leading-[1.05] text-ink md:text-6xl lg:text-7xl">
             Cutting incident MTTR with an{" "}
@@ -170,7 +170,7 @@ function Hero() {
 
           <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 text-xs text-ink-dim">
             <div className="flex items-center gap-2">
-              <Users size={14} /> Team Spotify-2 · Chetan Singh + Henning
+              <Users size={14} /> The Public Works · Chetan Singh + Henning
             </div>
             <div className="flex items-center gap-2">
               <Code2 size={14} /> Python MCP server + pgvector
@@ -678,7 +678,7 @@ function Ask() {
           {/* Team card */}
           <div className="rounded-2xl border border-spotify/30 bg-bg-panel p-8 shadow-glow">
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-spotify">
-              <Users size={14} /> Team Spotify-2
+              <Users size={14} /> The Public Works
             </div>
 
             <div className="mt-6 grid grid-cols-2 gap-4 border-b border-white/5 pb-6">
@@ -726,7 +726,7 @@ function Footer() {
   return (
     <footer className="border-t border-white/5">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-6 text-xs text-ink-dim">
-        <div>© Team Spotify-2 · Spotify × Cline + 2Hero hackathon · 2026</div>
+        <div>© 2026 The Public Works · Born at the Cline + 2Hero hackathon</div>
         <div className="flex items-center gap-4">
           <Link href="/demo" className="hover:text-ink">
             Try it →

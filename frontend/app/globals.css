@@ -2,15 +2,15 @@
 
 /* ─────────────────────────────────────────────────────────────────
    Theme tokens
-   - Original ctx-mcp demo (graph + chat) uses `--background` /
+   - Original Hydrant demo (graph + chat) uses `--background` /
      `--accent` etc. via CSS vars (kept for backward compat at /demo).
-   - The new Spotify-2 pitch site (/, /present) uses Tailwind v4
+   - The new Hydrant pitch site (/, /present) uses Tailwind v4
      theme tokens defined in @theme so classes like `bg-spotify`,
      `text-ink`, `font-display` work directly.
    ───────────────────────────────────────────────────────────────── */
 
 :root {
-  /* legacy ctx-mcp tokens — used by /demo */
+  /* legacy Hydrant tokens — used by /demo */
   --background: #0b0d10;
   --foreground: #e7eaee;
   --panel: #14171c;
@@ -22,7 +22,7 @@
 }
 
 @theme {
-  /* Spotify-2 pitch palette */
+  /* Hydrant palette */
   --color-spotify: #1DB954;
   --color-spotify-dark: #0F7A38;
   --color-spotify-glow: #1ED760;

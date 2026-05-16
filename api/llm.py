@@ -61,7 +61,7 @@ async def run_chat(
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         "HTTP-Referer": "http://localhost:3000",
-        "X-Title": "ctx-mcp web demo",
+        "X-Title": "Hydrant web demo",
     }
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:

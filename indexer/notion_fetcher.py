@@ -72,7 +72,7 @@ class Notion:
                 "Authorization": f"Bearer {api_key}",
                 "Notion-Version": NOTION_VERSION,
                 "Content-Type": "application/json",
-                "User-Agent": "ctx-mcp-indexer",
+                "User-Agent": "hydrant-indexer",
             },
             timeout=30.0,
         )

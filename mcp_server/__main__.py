@@ -5,7 +5,7 @@ Run via: `python -m mcp_server`
 Wire into Claude Desktop with:
 {
   "mcpServers": {
-    "ctx": {
+    "hydrant": {
       "command": "python",
       "args": ["-m", "mcp_server"],
       "cwd": "/path/to/hackathon-mcp",
@@ -32,14 +32,14 @@ log = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_app: FastMCP) -> AsyncIterator[None]:
     await STATE.startup()
-    log.info("ctx-mcp ready")
+    log.info("hydrant ready")
     try:
         yield
     finally:
         await STATE.shutdown()
 
 
-mcp = FastMCP("ctx-mcp", lifespan=lifespan)
+mcp = FastMCP("hydrant", lifespan=lifespan)
 
 
 @mcp.tool()

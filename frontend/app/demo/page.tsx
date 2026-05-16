@@ -45,7 +45,7 @@ export default function Demo() {
             ← home
           </Link>
           <span className="font-mono text-sm font-semibold" style={{ color: "var(--accent)" }}>
-            ctx-mcp
+            hydrant
           </span>
           <span className="text-xs" style={{ color: "var(--muted)" }}>
             knowledge graph + agent

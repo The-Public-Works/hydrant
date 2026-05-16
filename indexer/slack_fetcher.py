@@ -59,7 +59,7 @@ class Slack:
             base_url=API_ROOT,
             headers={
                 "Authorization": f"Bearer {bot_token}",
-                "User-Agent": "ctx-mcp-indexer",
+                "User-Agent": "hydrant-indexer",
             },
             timeout=30.0,
         )

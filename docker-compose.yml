@@ -1,7 +1,7 @@
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: ctx-postgres
+    container_name: hydrant-postgres
     environment:
       POSTGRES_USER: ctx
       POSTGRES_DB: ctx
@@ -25,12 +25,12 @@ services:
   # Routes:
   #   /          marketing landing
   #   /present   slide deck (use ?speaker_notes=true for presenter view)
-  #   /demo      ctx-mcp chat + graph (proxies /api/* to the api service)
+  #   /demo      Hydrant chat + graph (proxies /api/* to the api service)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: ctx-frontend
+    container_name: hydrant-frontend
     ports:
       - "3000:3000"
     restart: unless-stopped

@@ -1,5 +1,5 @@
 [project]
-name = "ctx-mcp"
+name = "hydrant"
 version = "0.1.0"
 description = "Intelligent Context Navigation: a knowledge-graph + semantic-search MCP server over a GitHub repo."
 requires-python = ">=3.11"

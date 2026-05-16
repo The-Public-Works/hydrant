@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
         await STATE.shutdown()
 
 
-app = FastAPI(title="ctx-mcp web demo", lifespan=lifespan)
+app = FastAPI(title="Hydrant web demo", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
