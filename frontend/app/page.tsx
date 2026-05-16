@@ -1,13 +1,9 @@
 /**
- * Landing — single-page marketing scroll for jurors / visitors.
+ * Landing — open-source marketing page for github.com/the-public-works/hydrant.
  *
- * Optimized for the 30-second skim: each section answers one of the
- * jury's four scoring questions in plain language.
- *
- *   Q1 Process we help with        → "The 2am moment" hero + problem
- *   Q2 How business critical       → cost stats
- *   Q3 Tech-solution impact        → architecture + scale
- *   Q4 Demo-solution impact        → live demo timeline + 25× number
+ * Design intent: light theme, no "AI website" gloss. Each section is its own
+ * coloured block (amber / blue / emerald / red) so the page reads as a series
+ * of bite-size answers rather than one long scroll.
  *
  * Sister pages:
  *   /present  — slide deck used during the live pitch
@@ -17,115 +13,94 @@
 
 import Link from "next/link";
 import {
-  AlertTriangle,
   ArrowRight,
   ArrowUpRight,
-  Bolt,
-  Clock,
-  Code2,
-  DollarSign,
+  Bot,
+  Check,
+  Cpu,
+  Database,
   Flame,
   Github,
-  GitPullRequestArrow,
+  GitBranch,
   Layers,
-  Moon,
+  MessageSquare,
   Network,
   PlayCircle,
   Rocket,
-  Send,
+  Search,
   ShieldCheck,
   Slack,
   Sparkles,
+  Star,
+  Terminal,
   Users,
-  MessageSquare,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 
-const SPOTIFY = "#1DB954";
+const HYDRANT_RED = "#DC2626";
+const GITHUB_URL = "https://github.com/the-public-works/hydrant";
 
 export default function Landing() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-bg">
-      <Background />
+    <div className="min-h-screen bg-white text-slate-900">
       <NavBar />
       <Hero />
-      <Cost />
-      <HowItWorks />
-      <DemoTimeline />
-      <ImpactNumber />
-      <Scale />
-      <Ask />
+      <WhatItDoes />
+      <WhyHydrant />
+      <Quickstart />
+      <Tools />
+      <Architecture />
+      <UseCases />
+      <CTASection />
       <Footer />
     </div>
-  );
-}
-
-/* ─────────── Background grid + glow ─────────── */
-function Background() {
-  return (
-    <>
-      <div
-        className="pointer-events-none fixed inset-0 -z-10 opacity-[0.07]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
-        }}
-      />
-      <div
-        className="pointer-events-none fixed -left-40 top-[-160px] -z-10 h-[500px] w-[500px] rounded-full opacity-[0.15] blur-[120px]"
-        style={{ background: SPOTIFY }}
-      />
-      <div
-        className="pointer-events-none fixed right-[-160px] top-[40%] -z-10 h-[400px] w-[400px] rounded-full opacity-[0.12] blur-[120px]"
-        style={{ background: SPOTIFY }}
-      />
-    </>
   );
 }
 
 /* ─────────── Nav ─────────── */
 function NavBar() {
   return (
-    <header className="sticky top-0 z-30 border-b border-white/5 bg-bg/80 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-2.5">
           <div
-            className="flex h-8 w-8 items-center justify-center rounded-lg shadow-glow"
-            style={{ background: SPOTIFY }}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-white"
+            style={{ background: HYDRANT_RED }}
           >
-            <Sparkles size={16} className="text-black" />
+            <Flame size={18} strokeWidth={2.4} />
           </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold">The Public Works</div>
-            <div className="text-[10px] uppercase tracking-widest text-ink-dim">
-              Cline + 2Hero hackathon
+            <div className="text-base font-bold tracking-tight text-slate-900">
+              Hydrant
+            </div>
+            <div className="text-[10px] uppercase tracking-widest text-slate-500">
+              Open-source AI knowledge layer
             </div>
           </div>
-        </div>
-        <nav className="hidden items-center gap-6 text-sm text-ink-mid md:flex">
-          <a href="#problem" className="hover:text-ink">Problem</a>
-          <a href="#solution" className="hover:text-ink">Solution</a>
-          <a href="#demo" className="hover:text-ink">Demo</a>
-          <a href="#impact" className="hover:text-ink">Impact</a>
-          <Link href="/demo" className="hover:text-ink">
-            Try it →
-          </Link>
+        </Link>
+        <nav className="hidden items-center gap-7 text-sm text-slate-600 md:flex">
+          <a href="#what" className="hover:text-slate-900">What it does</a>
+          <a href="#quickstart" className="hover:text-slate-900">Quickstart</a>
+          <a href="#tools" className="hover:text-slate-900">Tools</a>
+          <a href="#architecture" className="hover:text-slate-900">Architecture</a>
         </nav>
         <div className="flex items-center gap-2">
-          <Link
-            href="/present"
-            className="inline-flex items-center gap-1.5 rounded-md border border-white/10 px-3 py-1.5 text-xs font-medium text-ink-mid hover:border-white/30 hover:text-ink"
-          >
-            <PlayCircle size={14} /> Present
-          </Link>
           <a
-            href="#ask"
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-black transition hover:opacity-90"
-            style={{ background: SPOTIFY }}
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="hidden items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 sm:inline-flex"
           >
-            Talk to us <ArrowRight size={14} />
+            <Github size={14} /> GitHub
           </a>
+          <Link
+            href="/demo"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+            style={{ background: HYDRANT_RED }}
+          >
+            Live demo <ArrowRight size={14} />
+          </Link>
         </div>
       </div>
     </header>
@@ -135,605 +110,698 @@ function NavBar() {
 /* ─────────── Hero ─────────── */
 function Hero() {
   return (
-    <section className="relative mx-auto max-w-6xl px-6 pb-20 pt-24" id="problem">
-      <div className="grid grid-cols-1 gap-16 lg:grid-cols-[1.2fr_1fr] lg:items-center">
+    <section className="border-b border-slate-200 bg-white">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-14 px-6 py-20 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:py-28">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-spotify/30 bg-spotify/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-spotify">
-            <span className="h-1.5 w-1.5 rounded-full bg-spotify shimmer" />
-            Open source · AI knowledge layer
+          <div
+            className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-widest"
+            style={{
+              borderColor: "rgba(220, 38, 38, 0.25)",
+              background: "rgba(220, 38, 38, 0.06)",
+              color: HYDRANT_RED,
+            }}
+          >
+            <Sparkles size={12} />
+            Open source · MIT
           </div>
-          <h1 className="mt-6 font-display text-5xl font-bold leading-[1.05] text-ink md:text-6xl lg:text-7xl">
-            Cutting incident MTTR with an{" "}
-            <span style={{ color: SPOTIFY }}>AI knowledge layer.</span>
+          <h1 className="mt-6 text-5xl font-bold leading-[1.05] tracking-tight text-slate-900 md:text-6xl">
+            One AI knowledge layer for{" "}
+            <span style={{ color: HYDRANT_RED }}>Slack, Linear &amp; GitHub.</span>
           </h1>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-mid">
-            <span className="font-semibold text-ink">Slack · Linear · GitHub.</span>{" "}
-            Wherever your team&apos;s incident knowledge lives, we connect it.
-            Synthesized context in <span className="font-semibold text-ink">under 60 seconds</span>.
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-600">
+            Hydrant is an MCP server that indexes your team&apos;s incident knowledge —
+            past Slack threads, Linear tickets, GitHub runbooks &amp; PRs — and lets any
+            AI agent answer with citations in seconds.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
+            <a
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-md px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+              style={{ background: HYDRANT_RED }}
+            >
+              <Star size={16} /> Star on GitHub
+            </a>
             <Link
               href="/demo"
-              className="inline-flex items-center gap-2 rounded-md px-5 py-3 text-sm font-semibold text-black transition hover:opacity-90"
-              style={{ background: SPOTIFY }}
+              className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:border-slate-400 hover:bg-slate-50"
             >
-              See the live demo <PlayCircle size={16} />
-            </Link>
-            <Link
-              href="/present"
-              className="inline-flex items-center gap-2 rounded-md border border-white/15 px-5 py-3 text-sm font-medium text-ink-mid hover:border-white/30 hover:text-ink"
-            >
-              Open the deck <ArrowUpRight size={16} />
+              <PlayCircle size={16} /> See it in action
             </Link>
           </div>
 
-          <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 text-xs text-ink-dim">
-            <div className="flex items-center gap-2">
-              <Users size={14} /> The Public Works · Chetan Singh + Henning
-            </div>
-            <div className="flex items-center gap-2">
-              <Code2 size={14} /> Python MCP server + pgvector
-            </div>
-            <div className="flex items-center gap-2">
-              <Github size={14} /> Real Slack + Linear + GitHub workspaces
-            </div>
+          <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-500">
+            <span className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600" /> Python · FastMCP</span>
+            <span className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600" /> Postgres + pgvector</span>
+            <span className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600" /> Works with Cline · Claude Code · Claude Desktop</span>
           </div>
         </div>
 
-        {/* The "2am moment" card — the personal hook */}
-        <div className="relative">
+        {/* Slack message mockup */}
+        <SlackMockup />
+      </div>
+    </section>
+  );
+}
+
+function SlackMockup() {
+  return (
+    <div className="relative">
+      <div className="absolute -inset-2 -z-10 rounded-2xl bg-gradient-to-br from-red-100 via-amber-100 to-blue-100 opacity-70 blur-2xl" />
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3 text-[11px] text-slate-500">
+          <span className="flex items-center gap-1.5 font-semibold text-slate-700">
+            <Slack size={14} className="text-[#36C5F0]" />
+            #incident-auth-401s
+          </span>
+          <span>just now</span>
+        </div>
+        <div className="mt-4 flex gap-3">
           <div
-            className="absolute -inset-1 -z-10 rounded-2xl opacity-30 blur-xl"
-            style={{ background: SPOTIFY }}
-          />
-          <div className="rounded-2xl border border-white/10 bg-bg-panel p-7 shadow-glow">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-spotify">
-              <Moon size={14} /> The 2am moment
-            </div>
-            <p className="mt-5 font-display text-2xl leading-snug text-ink">
-              <span style={{ color: SPOTIFY }} className="text-4xl">&ldquo;</span>
-              We&apos;ve all spent hours at 2am hunting through Slack to figure out why auth
-              broke.
-            </p>
-            <p className="mt-4 text-sm italic text-ink-dim">
-              Every on-call engineer has this story.
-            </p>
-
-            <div className="mt-7 grid grid-cols-3 gap-2 border-t border-white/5 pt-5">
-              {[
-                { l: "Slack", I: Slack },
-                { l: "Linear", I: Layers },
-                { l: "GitHub", I: Github },
-              ].map(({ l, I }) => (
-                <div
-                  key={l}
-                  className="flex flex-col items-center gap-2 rounded-lg bg-bg-raised p-3"
-                >
-                  <I size={18} className="text-ink-dim" />
-                  <span className="text-[10px] uppercase tracking-wide text-ink-dim">{l}</span>
-                </div>
-              ))}
-            </div>
-            <p className="mt-4 text-xs text-ink-dim">
-              The first 10–30 minutes of every incident: the same hunt, every time.
-            </p>
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white"
+            style={{ background: HYDRANT_RED }}
+          >
+            <Flame size={16} strokeWidth={2.4} />
           </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─────────── The cost is enormous ─────────── */
-function Cost() {
-  const cards = [
-    {
-      I: DollarSign,
-      n: "$5,600",
-      u: "/min",
-      label: "Enterprise downtime cost",
-      sub: "Gartner — that's $336K/hour",
-    },
-    {
-      I: Clock,
-      n: "#1",
-      u: "metric",
-      label: "MTTR is on every SRE OKR",
-      sub: "Reported up to the CTO",
-    },
-    {
-      I: Flame,
-      n: "Top 3",
-      u: "reasons",
-      label: "Senior engineers quit",
-      sub: "On-call burnout — State of DevOps",
-    },
-  ];
-  return (
-    <section className="border-y border-white/5 bg-bg-panel/40">
-      <div className="mx-auto max-w-6xl px-6 py-20">
-        <SectionLabel>Why it matters</SectionLabel>
-        <h2 className="mt-3 font-display text-4xl font-semibold text-ink md:text-5xl">
-          The cost is enormous.
-        </h2>
-        <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-3">
-          {cards.map(({ I, n, u, label, sub }) => (
-            <div
-              key={label}
-              className="group relative overflow-hidden rounded-xl border border-white/10 bg-bg-card p-7 transition hover:border-spotify/40"
-            >
-              <div
-                className="absolute inset-x-0 top-0 h-[2px]"
-                style={{ background: SPOTIFY }}
-              />
-              <I size={22} className="text-spotify" />
-              <div className="mt-4 font-display text-5xl font-bold leading-none" style={{ color: SPOTIFY }}>
-                {n}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm font-semibold text-slate-900">hydrant</span>
+              <span className="rounded-sm bg-slate-100 px-1 py-0 font-mono text-[9px] font-semibold text-slate-500">
+                APP
+              </span>
+            </div>
+            <div className="mt-2 space-y-2 text-[13px] leading-relaxed text-slate-700">
+              <p>
+                <span className="font-semibold text-slate-900">Diagnosis</span>{" "}
+                <code className="rounded bg-slate-100 px-1 text-[12px]">JWT_ACCESS_EXPIRATION_MINUTES = 0</code>{" "}
+                in <code className="rounded bg-slate-100 px-1 text-[12px]">src/config/config.js</code>.
+                Confidence:{" "}
+                <span className="font-semibold text-emerald-600">HIGH</span>.
+              </p>
+              <p>
+                <span className="font-semibold text-slate-900">Suspect</span> PR #2 by @henning
+              </p>
+              <p>
+                <span className="font-semibold text-slate-900">Owner</span> @alice-platform per CODEOWNERS
+              </p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <CitationChip I={Slack} label="past Slack thread" />
+                <CitationChip I={Layers} label="Linear CLI-5" />
+                <CitationChip I={Github} label="auth-runbook.md" />
               </div>
-              <div className="mt-2 text-[11px] font-semibold uppercase tracking-widest text-ink-dim">
-                {u}
-              </div>
-              <div className="mt-4 text-base font-semibold text-ink">{label}</div>
-              <div className="mt-1 text-sm italic text-ink-dim">{sub}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-8 flex items-start gap-3 rounded-lg bg-bg-raised px-5 py-4 text-sm">
-          <Sparkles size={16} className="mt-0.5 shrink-0 text-spotify" />
-          <p className="text-ink-mid">
-            <span className="font-semibold text-spotify">At Spotify — 2,000+ services.</span>{" "}
-            Every minute of context-hunting compounds across hundreds of on-calls every week.
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─────────── How it works ─────────── */
-function HowItWorks() {
-  return (
-    <section id="solution" className="mx-auto max-w-6xl px-6 py-24">
-      <SectionLabel>The solution</SectionLabel>
-      <h2 className="mt-3 font-display text-4xl font-semibold text-ink md:text-5xl">
-        Wherever your incident knowledge lives — we connect it.
-      </h2>
-      <p className="mt-4 max-w-2xl text-base text-ink-mid">
-        No org has incident knowledge in one place. We unify Slack threads, Linear tickets,
-        and GitHub runbooks + PRs — then synthesize them into one cited answer.
-      </p>
-
-      {/* Flow diagram */}
-      <div className="mt-14 grid grid-cols-1 gap-6 lg:grid-cols-[1.2fr_auto_1fr_auto_0.9fr] lg:items-stretch">
-        {/* 3 sources, single column */}
-        <div className="flex flex-col gap-3">
-          <SourceCard I={Slack}  title="Slack"  sub="Past incident channels & threads" />
-          <SourceCard I={Layers} title="Linear" sub="Tickets · root causes · fixes" />
-          <SourceCard I={Github} title="GitHub" sub="Runbooks · PRs · code that fixed past incidents" />
-        </div>
-        <FlowArrow />
-        {/* Brain */}
-        <div className="relative rounded-2xl border-2 border-spotify/60 bg-bg-raised p-7 shadow-glow">
-          <div className="flex items-center gap-3">
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-lg"
-              style={{ background: SPOTIFY }}
-            >
-              <Network size={20} className="text-black" />
-            </div>
-            <div>
-              <div className="font-display text-xl font-semibold text-ink">
-                AI Knowledge Layer
-              </div>
-              <div className="text-xs uppercase tracking-widest text-spotify">MCP server</div>
             </div>
           </div>
-          <ul className="mt-6 space-y-2 text-sm text-ink-mid">
-            <Capability>Unified semantic search across all sources</Capability>
-            <Capability>Cross-source synthesis with deep-link citations</Capability>
-            <Capability>Posts the answer back into the incident channel</Capability>
-          </ul>
-        </div>
-        <FlowArrow />
-        {/* Output */}
-        <div className="rounded-2xl border border-white/10 bg-bg-card p-7">
-          <div
-            className="absolute inset-x-0 top-0 h-[2px]"
-            style={{ background: SPOTIFY }}
-          />
-          <Bolt size={20} className="text-spotify" />
-          <div className="mt-4 font-display text-3xl font-bold text-ink">Synthesis</div>
-          <div className="font-display text-3xl font-bold" style={{ color: SPOTIFY }}>
-            in seconds
-          </div>
-          <div className="mt-4 text-xs italic text-ink-dim">
-            Past incident · runbook · ticket · fix · owner
-          </div>
         </div>
       </div>
-
-      {/* Bottom strip — "no matter where" */}
-      <div className="mt-12 flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-bg-raised px-6 py-4 text-sm">
-        <SpotifyMark />
-        <span className="font-semibold text-spotify">No matter where your knowledge lives.</span>
-        <span className="text-ink-mid">Slack, Linear, GitHub today — any tool tomorrow.</span>
-        <span className="ml-auto text-xs italic text-ink-dim">
-          Demo: real workspaces, real data.
-        </span>
-      </div>
-    </section>
-  );
-}
-
-function SourceCard({
-  I,
-  title,
-  sub,
-}: {
-  I: LucideIcon;
-  title: string;
-  sub: string;
-}) {
-  return (
-    <div className="relative flex flex-col rounded-xl border border-white/10 bg-bg-card p-4">
-      <div
-        className="absolute inset-y-0 left-0 w-[3px] rounded-l-xl"
-        style={{ background: SPOTIFY }}
-      />
-      <div className="flex items-center gap-2">
-        <I size={16} className="text-spotify" />
-        <div className="text-sm font-semibold text-ink">{title}</div>
-      </div>
-      <div className="mt-1 text-[11px] leading-snug text-ink-dim">{sub}</div>
     </div>
   );
 }
 
-function Capability({ children }: { children: React.ReactNode }) {
+function CitationChip({ I, label }: { I: LucideIcon; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+      <I size={11} /> {label}
+    </span>
+  );
+}
+
+/* ─────────── What it does (amber block) ─────────── */
+function WhatItDoes() {
+  const steps = [
+    {
+      I: Database,
+      title: "1 · Index",
+      desc: "Hydrant indexes your Slack, Linear, and GitHub into a unified knowledge graph with vector embeddings.",
+    },
+    {
+      I: Search,
+      title: "2 · Search & synthesize",
+      desc: "17 MCP tools expose semantic search, graph traversal, and cross-source synthesis.",
+    },
+    {
+      I: Bot,
+      title: "3 · Answer with citations",
+      desc: "Any MCP-compatible agent (Cline, Claude Code, Claude Desktop) calls Hydrant and posts a cited answer back to your team.",
+    },
+  ];
+  return (
+    <section id="what" className="bg-amber-50">
+      <div className="mx-auto max-w-6xl px-6 py-20">
+        <SectionLabel color="amber">How it works</SectionLabel>
+        <h2 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 md:text-5xl">
+          One knowledge layer. <span className="text-amber-700">Three steps.</span>
+        </h2>
+
+        <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-3">
+          {steps.map(({ I, title, desc }) => (
+            <div
+              key={title}
+              className="rounded-2xl border border-amber-200 bg-white p-7 transition hover:border-amber-400"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                <I size={22} />
+              </div>
+              <div className="mt-5 text-base font-bold text-slate-900">{title}</div>
+              <div className="mt-2 text-sm leading-relaxed text-slate-600">{desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────── Why Hydrant (white block) ─────────── */
+function WhyHydrant() {
+  const points = [
+    {
+      I: Network,
+      title: "Cross-source synthesis",
+      desc: "Not just search across silos — synthesis. One question, one cited answer drawing from all your tools.",
+    },
+    {
+      I: Zap,
+      title: "Sub-second retrieval",
+      desc: "HNSW vector search on Postgres + pgvector. Hybrid graph traversal + kNN in a single SQL query.",
+    },
+    {
+      I: ShieldCheck,
+      title: "Self-hosted, your data",
+      desc: "Runs on your infra. Your Slack tokens, your Postgres, your embeddings. No third-party SaaS in the loop.",
+    },
+    {
+      I: Cpu,
+      title: "Any MCP client",
+      desc: "Wire it into Cline, Claude Code, Claude Desktop, Cursor, or any agent that speaks MCP. One server, many clients.",
+    },
+  ];
+  return (
+    <section className="border-y border-slate-200 bg-white">
+      <div className="mx-auto max-w-6xl px-6 py-20">
+        <SectionLabel color="red">Why Hydrant</SectionLabel>
+        <h2 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 md:text-5xl">
+          Built for the on-call engineer at 2am.
+        </h2>
+        <p className="mt-4 max-w-2xl text-base text-slate-600">
+          The first 10 minutes of an incident decide everything. Hydrant collapses
+          context-gathering from hours to seconds.
+        </p>
+
+        <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2">
+          {points.map(({ I, title, desc }) => (
+            <div
+              key={title}
+              className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-6 transition hover:border-slate-300 hover:shadow-md"
+            >
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white"
+                style={{ background: HYDRANT_RED }}
+              >
+                <I size={20} />
+              </div>
+              <div>
+                <div className="text-base font-bold text-slate-900">{title}</div>
+                <div className="mt-1.5 text-sm leading-relaxed text-slate-600">{desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────── Quickstart (blue block) ─────────── */
+function Quickstart() {
+  return (
+    <section id="quickstart" className="bg-blue-50">
+      <div className="mx-auto max-w-6xl px-6 py-20">
+        <SectionLabel color="blue">Quickstart</SectionLabel>
+        <h2 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 md:text-5xl">
+          Up and running in <span className="text-blue-700">5 minutes.</span>
+        </h2>
+        <p className="mt-4 max-w-2xl text-base text-slate-600">
+          Clone, drop in your tokens, and point your AI agent at the MCP server.
+          That&apos;s it.
+        </p>
+
+        <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_1fr] lg:items-start">
+          {/* Terminal block */}
+          <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-xl shadow-blue-200/50">
+            <div className="flex items-center gap-2 border-b border-slate-800 px-4 py-2.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              <span className="ml-2 font-mono text-[11px] text-slate-400">terminal</span>
+            </div>
+            <pre className="overflow-x-auto px-5 py-5 font-mono text-[12.5px] leading-relaxed text-slate-200">
+{`# 1. Clone & install
+git clone https://github.com/the-public-works/hydrant
+cd hydrant && make setup
+
+# 2. Add your tokens
+cp .env.example .env
+$EDITOR .env   # SLACK_BOT_TOKEN, LINEAR_API_KEY, GITHUB_TOKEN
+
+# 3. Index your sources
+make index-github
+make index-slack
+make index-linear
+
+# 4. Run the MCP server
+make demo`}
+            </pre>
+          </div>
+
+          {/* Wire-in list */}
+          <div className="rounded-2xl border border-blue-200 bg-white p-7">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-blue-700">
+              <Terminal size={14} /> Wire it into your agent
+            </div>
+            <p className="mt-3 text-sm text-slate-600">
+              Hydrant speaks the standard Model Context Protocol — works with any MCP client.
+            </p>
+            <ul className="mt-5 space-y-3 text-sm">
+              <ClientRow name="Cline">
+                Add <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[12px] text-slate-800">hydrant</code> to <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[12px] text-slate-800">.cline/mcp.json</code>
+              </ClientRow>
+              <ClientRow name="Claude Code">
+                <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[12px] text-slate-800">claude mcp add hydrant</code>
+              </ClientRow>
+              <ClientRow name="Claude Desktop">
+                Add to <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[12px] text-slate-800">claude_desktop_config.json</code>
+              </ClientRow>
+              <ClientRow name="Cursor / Continue">
+                Standard MCP stdio transport
+              </ClientRow>
+            </ul>
+            <a
+              href={`${GITHUB_URL}#quickstart`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"
+            >
+              Full setup guide <ArrowUpRight size={14} />
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ClientRow({ name, children }: { name: string; children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-3">
+      <span className="mt-0.5 inline-flex h-5 min-w-[5rem] items-center justify-center rounded-md bg-blue-100 px-2 text-[11px] font-semibold text-blue-700">
+        {name}
+      </span>
+      <span className="text-slate-600">{children}</span>
+    </li>
+  );
+}
+
+/* ─────────── Tools (white block) ─────────── */
+function Tools() {
+  const families = [
+    {
+      color: HYDRANT_RED,
+      bg: "bg-red-50",
+      border: "border-red-200",
+      pill: "bg-red-100 text-red-700",
+      title: "Cross-source synthesis",
+      I: Network,
+      sub: "The headline tools — fan out across all sources, return one cited answer.",
+      tools: [
+        "search_context",
+        "search_all",
+        "diagnose_incident",
+        "find_similar_incidents",
+        "trace_issue",
+      ],
+    },
+    {
+      color: "#1D4ED8",
+      bg: "bg-blue-50",
+      border: "border-blue-200",
+      pill: "bg-blue-100 text-blue-700",
+      title: "GitHub-flavored",
+      I: Github,
+      sub: "Code, runbooks, PRs, blame, ownership.",
+      tools: ["get_pr_diff", "git_blame", "get_runbook", "who_owns", "list_repos"],
+    },
+    {
+      color: "#B45309",
+      bg: "bg-amber-50",
+      border: "border-amber-200",
+      pill: "bg-amber-100 text-amber-800",
+      title: "Slack write",
+      I: Slack,
+      sub: "Spin up incident channels and post synthesis back to the team.",
+      tools: ["create_slack_channel", "post_to_slack"],
+    },
+    {
+      color: "#047857",
+      bg: "bg-emerald-50",
+      border: "border-emerald-200",
+      pill: "bg-emerald-100 text-emerald-700",
+      title: "Linear write",
+      I: Layers,
+      sub: "Open tickets, comment, update status — keep the audit trail tight.",
+      tools: ["create_linear_issue", "add_linear_comment", "update_linear_issue"],
+    },
+  ];
+  return (
+    <section id="tools" className="border-b border-slate-200 bg-white">
+      <div className="mx-auto max-w-6xl px-6 py-20">
+        <SectionLabel color="red">MCP tools</SectionLabel>
+        <h2 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 md:text-5xl">
+          17 tools. <span style={{ color: HYDRANT_RED }}>Four families.</span>
+        </h2>
+        <p className="mt-4 max-w-2xl text-base text-slate-600">
+          Every tool is documented, typed, and callable from any MCP client.
+        </p>
+
+        <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2">
+          {families.map((f) => (
+            <div
+              key={f.title}
+              className={`rounded-2xl border ${f.border} ${f.bg} p-7`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-lg text-white"
+                  style={{ background: f.color }}
+                >
+                  <f.I size={20} />
+                </div>
+                <div className="text-lg font-bold text-slate-900">{f.title}</div>
+              </div>
+              <p className="mt-3 text-sm text-slate-600">{f.sub}</p>
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {f.tools.map((t) => (
+                  <span
+                    key={t}
+                    className={`rounded-md px-2 py-0.5 font-mono text-[11px] font-medium ${f.pill}`}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────── Architecture (emerald block) ─────────── */
+function Architecture() {
+  return (
+    <section id="architecture" className="bg-emerald-50">
+      <div className="mx-auto max-w-6xl px-6 py-20">
+        <SectionLabel color="emerald">Architecture</SectionLabel>
+        <h2 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 md:text-5xl">
+          Sources <span className="text-emerald-700">→</span> Hydrant{" "}
+          <span className="text-emerald-700">→</span> Your agent
+        </h2>
+        <p className="mt-4 max-w-2xl text-base text-slate-600">
+          Three layers. No magic — every box is open code.
+        </p>
+
+        <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_auto_1.1fr_auto_1fr] lg:items-stretch">
+          {/* Sources */}
+          <ArchColumn title="Sources" sub="Indexers run on cron">
+            <ArchRow I={Slack} label="Slack" detail="Threads · messages" />
+            <ArchRow I={Layers} label="Linear" detail="Issues · comments" />
+            <ArchRow I={Github} label="GitHub" detail="PRs · runbooks · code" />
+          </ArchColumn>
+
+          <ArchArrow />
+
+          {/* Brain */}
+          <div className="rounded-2xl border-2 border-emerald-300 bg-white p-6 shadow-lg shadow-emerald-100/80">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                <Flame size={20} strokeWidth={2.4} />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-slate-900">Hydrant</div>
+                <div className="text-xs uppercase tracking-widest text-emerald-700">MCP server</div>
+              </div>
+            </div>
+            <ul className="mt-5 space-y-2 text-sm text-slate-600">
+              <ArchBullet>Postgres + pgvector knowledge graph</ArchBullet>
+              <ArchBullet>HNSW vector search + edge traversal</ArchBullet>
+              <ArchBullet>17 MCP tools over stdio transport</ArchBullet>
+              <ArchBullet>Voyage AI embeddings (512-dim)</ArchBullet>
+            </ul>
+          </div>
+
+          <ArchArrow />
+
+          {/* Clients */}
+          <ArchColumn title="Your agent" sub="Any MCP client">
+            <ArchRow I={Bot} label="Cline" detail="VSCode agent" />
+            <ArchRow I={Terminal} label="Claude Code" detail="CLI" />
+            <ArchRow I={MessageSquare} label="Claude Desktop" detail="App" />
+          </ArchColumn>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ArchColumn({
+  title,
+  sub,
+  children,
+}: {
+  title: string;
+  sub: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col">
+      <div className="text-[11px] font-semibold uppercase tracking-widest text-emerald-700">
+        {title}
+      </div>
+      <div className="text-xs text-slate-500">{sub}</div>
+      <div className="mt-3 flex flex-col gap-2">{children}</div>
+    </div>
+  );
+}
+
+function ArchRow({
+  I,
+  label,
+  detail,
+}: {
+  I: LucideIcon;
+  label: string;
+  detail: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-white p-3">
+      <I size={16} className="text-emerald-700" />
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold text-slate-900">{label}</div>
+        <div className="text-[11px] text-slate-500">{detail}</div>
+      </div>
+    </div>
+  );
+}
+
+function ArchArrow() {
+  return (
+    <div className="hidden items-center justify-center lg:flex">
+      <ArrowRight size={24} className="text-emerald-600" />
+    </div>
+  );
+}
+
+function ArchBullet({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2">
-      <span
-        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
-        style={{ background: SPOTIFY }}
-      />
+      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
       <span>{children}</span>
     </li>
   );
 }
 
-function FlowArrow() {
-  return (
-    <div className="hidden items-center justify-center lg:flex">
-      <ArrowRight size={28} className="text-spotify/70" />
-    </div>
-  );
-}
-
-/* ─────────── Demo timeline ─────────── */
-function DemoTimeline() {
-  const steps = [
-    {
-      n: "1",
-      title: "New incident in Slack",
-      desc: "#incident-auth-down · 2 min ago · nobody knows yet",
-      I: AlertTriangle,
-      red: true,
-    },
-    {
-      n: "2",
-      title: "One prompt to Cline",
-      desc: "“What do we know about this?”",
-      I: MessageSquare,
-    },
-    {
-      n: "3",
-      title: "MCP fans out",
-      desc: "Slack · Linear · GitHub — in parallel",
-      I: Network,
-    },
-    {
-      n: "4",
-      title: "Synthesized context",
-      desc: "Past incident · runbook · ticket · fix · owner",
-      I: GitPullRequestArrow,
-    },
-    {
-      n: "5",
-      title: "Posted back to channel",
-      desc: "Whole team gets context, not just the asker",
-      I: Send,
-    },
-  ];
-  return (
-    <section
-      id="demo"
-      className="border-y border-white/5 bg-gradient-to-b from-bg via-bg-panel/40 to-bg"
-    >
-      <div className="mx-auto max-w-6xl px-6 py-24">
-        <SectionLabel>Live demo</SectionLabel>
-        <h2 className="mt-3 font-display text-4xl font-semibold text-ink md:text-5xl">
-          New incident. Watch the team get context.
-        </h2>
-        <p className="mt-4 max-w-2xl text-base text-ink-mid">
-          A fresh Slack incident channel. Real Linear tickets, real GitHub runbooks + PRs in
-          the back. One prompt — and the whole team has the answer.
-        </p>
-
-        <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-5">
-          {steps.map((s) => (
-            <div
-              key={s.n}
-              className="relative flex flex-col rounded-xl border border-white/10 bg-bg-card p-5"
-            >
-              <div
-                className="absolute inset-x-0 top-0 h-[2px]"
-                style={{ background: s.red ? "#E5484D" : SPOTIFY }}
-              />
-              <div className="flex items-center justify-between">
-                <span
-                  className="font-display text-2xl font-bold"
-                  style={{ color: s.red ? "#E5484D" : SPOTIFY }}
-                >
-                  {s.n}
-                </span>
-                <s.I size={18} className={s.red ? "text-danger" : "text-spotify"} />
-              </div>
-              <div className="mt-4 text-sm font-semibold text-ink">{s.title}</div>
-              <div className="mt-2 text-xs leading-relaxed text-ink-mid">{s.desc}</div>
-            </div>
-          ))}
-        </div>
-
-        <div
-          className="mt-8 flex items-center gap-3 rounded-xl px-6 py-4"
-          style={{ background: "rgba(15,122,56,0.18)", border: "1px solid rgba(29,185,84,0.3)" }}
-        >
-          <Clock size={18} className="text-spotify" />
-          <p className="text-sm text-ink">
-            <span className="font-semibold">End-to-end on stage: under 60 seconds.</span>{" "}
-            <span className="text-ink-mid italic">
-              The whole on-call team gets the context — not just the asker.
-            </span>
-          </p>
-        </div>
-
-        <div className="mt-6 text-center">
-          <Link
-            href="/demo"
-            className="inline-flex items-center gap-2 rounded-md border border-spotify/30 bg-spotify/10 px-5 py-2.5 text-sm font-semibold text-spotify hover:bg-spotify/20"
-          >
-            Try the live demo <ArrowUpRight size={14} />
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─────────── Impact number ─────────── */
-function ImpactNumber() {
-  return (
-    <section id="impact" className="mx-auto max-w-6xl px-6 py-24">
-      <SectionLabel>The impact</SectionLabel>
-      <h2 className="mt-3 font-display text-4xl font-semibold text-ink md:text-5xl">
-        From hours of hunting to seconds of answer.
-      </h2>
-
-      <div className="mt-12 grid grid-cols-1 items-stretch gap-6 lg:grid-cols-[1fr_auto_1fr]">
-        <div className="rounded-2xl border border-white/10 bg-bg-card p-8">
-          <div className="text-[11px] font-semibold uppercase tracking-widest text-ink-dim">
-            Traditional
-          </div>
-          <div className="mt-4 font-display text-7xl font-bold text-ink-dim">~25 min</div>
-          <div className="mt-3 text-base italic text-ink-mid">just to gather context</div>
-          <div className="mt-2 text-xs leading-relaxed text-ink-dim">
-            Slack search · old issues · runbooks · grafana · git blame · pinging seniors
-          </div>
-        </div>
-        <div className="flex items-center justify-center">
-          <ArrowRight size={36} className="text-spotify" />
-        </div>
-        <div className="rounded-2xl border-2 border-spotify/60 bg-bg-raised p-8 shadow-glow">
-          <div className="text-[11px] font-semibold uppercase tracking-widest text-spotify">
-            With our MCP
-          </div>
-          <div
-            className="mt-4 font-display text-7xl font-bold"
-            style={{ color: SPOTIFY }}
-          >
-            &lt; 60 sec
-          </div>
-          <div className="mt-3 text-base italic text-ink">end-to-end diagnosis</div>
-          <div className="mt-2 text-xs leading-relaxed text-ink-mid">
-            Cause · fix · prior incidents · owner — synthesized in one prompt
-          </div>
-        </div>
-      </div>
-
-      <div
-        className="mt-8 rounded-xl px-6 py-4 text-center text-sm"
-        style={{ background: "rgba(15,122,56,0.18)", border: "1px solid rgba(29,185,84,0.3)" }}
-      >
-        <span className="font-semibold text-ink">~25× faster context gathering.</span>{" "}
-        <span className="italic text-ink-mid">Live stopwatch on screen during the demo.</span>
-      </div>
-    </section>
-  );
-}
-
-/* ─────────── Scale + secondary wins ─────────── */
-function Scale() {
-  const wins = [
+/* ─────────── Use cases (white block) ─────────── */
+function UseCases() {
+  const prompts = [
     {
       I: Flame,
-      title: "Reduces on-call burnout",
-      desc: "Engineers spend less time hunting, more time fixing.",
-    },
-    {
-      I: Rocket,
-      title: "Accelerates onboarding",
-      desc: "Junior engineers get senior-level context instantly.",
+      title: "Diagnose a live incident",
+      prompt: "Auth is throwing 401s in prod. Diagnose, open a Linear ticket, and post to #incident-channel.",
     },
     {
       I: Users,
-      title: "Captures tribal knowledge",
-      desc: "Insights stay even when seniors leave.",
+      title: "Onboard a new engineer",
+      prompt: "What is the payment service? Who owns it, how do we deploy, and where do past incidents live?",
+    },
+    {
+      I: GitBranch,
+      title: "Review a risky PR",
+      prompt: "Why is this PR changing auth config? Find prior incidents involving the same file.",
+    },
+    {
+      I: Rocket,
+      title: "Capture tribal knowledge",
+      prompt: "Summarize how we handled the last 5 sev-1s. What's the common pattern?",
     },
   ];
   return (
-    <section className="border-y border-white/5 bg-bg-panel/40">
-      <div className="mx-auto max-w-6xl px-6 py-24">
-        <SectionLabel>Scale & secondary wins</SectionLabel>
-        <h2 className="mt-3 font-display text-4xl font-semibold text-ink md:text-5xl">
-          Beyond incidents. Beyond any one tool.
+    <section className="border-b border-slate-200 bg-white">
+      <div className="mx-auto max-w-6xl px-6 py-20">
+        <SectionLabel color="red">Use cases</SectionLabel>
+        <h2 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 md:text-5xl">
+          Try these in your agent.
         </h2>
 
-        <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_1.4fr]">
-          {/* Big stat */}
-          <div className="relative rounded-2xl border border-white/10 bg-bg-card p-8">
+        <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {prompts.map((p) => (
             <div
-              className="absolute inset-x-0 top-0 h-[2px]"
-              style={{ background: SPOTIFY }}
-            />
-            <SpotifyMark />
-            <div
-              className="mt-6 font-display text-7xl font-bold"
-              style={{ color: SPOTIFY }}
+              key={p.title}
+              className="rounded-2xl border border-slate-200 bg-white p-6 transition hover:border-slate-300 hover:shadow-md"
             >
-              2,000+
-            </div>
-            <div className="mt-2 text-base font-semibold text-ink">services at Spotify</div>
-            <div className="mt-2 text-xs italic text-ink-dim">
-              Any tool. Any team. Drop in a token, get unified context.
-            </div>
-          </div>
-
-          {/* Wins */}
-          <div className="flex flex-col gap-4">
-            {wins.map(({ I, title, desc }) => (
-              <div
-                key={title}
-                className="relative flex items-start gap-4 rounded-xl border border-white/10 bg-bg-card p-5"
-              >
+              <div className="flex items-center gap-3">
                 <div
-                  className="absolute inset-y-0 left-0 w-[3px] rounded-l-xl"
-                  style={{ background: SPOTIFY }}
-                />
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-spotify/10">
-                  <I size={20} className="text-spotify" />
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-white"
+                  style={{ background: HYDRANT_RED }}
+                >
+                  <p.I size={18} />
                 </div>
-                <div>
-                  <div className="font-semibold text-ink">{title}</div>
-                  <div className="mt-1 text-sm text-ink-mid">{desc}</div>
-                </div>
+                <div className="text-base font-bold text-slate-900">{p.title}</div>
               </div>
-            ))}
-          </div>
+              <div className="mt-4 rounded-lg bg-slate-50 p-4 font-mono text-[12.5px] leading-relaxed text-slate-700">
+                <span className="select-none text-slate-400">&gt; </span>
+                {p.prompt}
+              </div>
+            </div>
+          ))}
         </div>
-
-        <p className="mt-10 text-center text-sm italic text-ink-dim">
-          One knowledge layer. Many use cases — incidents, onboarding, code review,
-          architecture decisions.
-        </p>
       </div>
     </section>
   );
 }
 
-/* ─────────── Ask ─────────── */
-function Ask() {
+/* ─────────── CTA (red block) ─────────── */
+function CTASection() {
   return (
-    <section id="ask" className="relative overflow-hidden">
-      <div
-        className="absolute inset-0 -z-10"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(29,185,84,0.18) 0%, rgba(15,122,56,0.05) 100%)",
-        }}
-      />
-      <div className="mx-auto max-w-6xl px-6 py-28">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1.4fr_1fr] lg:items-center">
-          <div>
-            <SectionLabel>Let&apos;s talk</SectionLabel>
-            <h2 className="mt-3 font-display text-6xl font-bold leading-[1.05] text-ink">
-              20 minutes.
-              <br />
-              <span style={{ color: SPOTIFY }}>Online.</span>
-            </h2>
-            <p className="mt-6 max-w-xl text-lg italic text-ink-mid">
-              We&apos;d love to show you how this could deploy at Spotify — across Slack, Linear,
-              GitHub, and any tool your teams already use.
-            </p>
+    <section
+      className="relative overflow-hidden text-white"
+      style={{ background: HYDRANT_RED }}
+    >
+      <div className="absolute inset-0 -z-10 opacity-20">
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 20% 30%, rgba(255,255,255,0.4) 0%, transparent 40%), radial-gradient(circle at 80% 70%, rgba(255,255,255,0.3) 0%, transparent 40%)",
+          }}
+        />
+      </div>
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-20 lg:grid-cols-[1.3fr_1fr] lg:items-center">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest">
+            <Github size={12} /> github.com/the-public-works/hydrant
+          </div>
+          <h2 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight md:text-5xl">
+            Self-host Hydrant.
+            <br />
+            Ship faster incident response.
+          </h2>
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-white/90">
+            Free, MIT-licensed, and yours to fork. Drop in your tokens, wire it
+            into your agent, and have a working knowledge layer by lunch.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             <a
-              href="mailto:chetan@kalipso.ai?subject=Spotify%20Hackathon%20-%20Knowledge%20MCP%20demo"
-              className="mt-8 inline-flex items-center gap-2 rounded-md px-6 py-3 text-sm font-semibold text-black transition hover:opacity-90"
-              style={{ background: SPOTIFY }}
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-semibold text-red-700 transition hover:bg-slate-50"
+              style={{ color: HYDRANT_RED }}
             >
-              chetan@kalipso.ai <ArrowUpRight size={16} />
+              <Star size={16} /> Star the repo
             </a>
+            <Link
+              href="/demo"
+              className="inline-flex items-center gap-2 rounded-md border border-white/40 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
+            >
+              <PlayCircle size={16} /> Try the live demo
+            </Link>
           </div>
+        </div>
 
-          {/* Team card */}
-          <div className="rounded-2xl border border-spotify/30 bg-bg-panel p-8 shadow-glow">
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-spotify">
-              <Users size={14} /> The Public Works
-            </div>
-
-            <div className="mt-6 grid grid-cols-2 gap-4 border-b border-white/5 pb-6">
-              <div>
-                <div className="font-display text-2xl font-bold text-ink">Chetan Singh</div>
-                <div className="mt-1 text-xs italic" style={{ color: "#C9F5D5" }}>
-                  Founding Engineer · Kalipso
-                </div>
-              </div>
-              <div>
-                <div className="font-display text-2xl font-bold text-ink">Henning</div>
-                <div className="mt-1 text-xs italic" style={{ color: "#C9F5D5" }}>
-                  Founding Engineer · Kalipso
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-3 text-sm text-ink-mid">
-              <Row I={Code2}>Backend · Infra · AI engineering</Row>
-            </div>
+        {/* Spec card */}
+        <div className="rounded-2xl border border-white/20 bg-white/10 p-7 backdrop-blur">
+          <div className="text-[11px] font-semibold uppercase tracking-widest text-white/80">
+            What you get
           </div>
+          <ul className="mt-4 space-y-3 text-sm">
+            <SpecRow>17 MCP tools, fully documented</SpecRow>
+            <SpecRow>Slack · Linear · GitHub indexers</SpecRow>
+            <SpecRow>Postgres + pgvector schema &amp; migrations</SpecRow>
+            <SpecRow>Docker Compose for local dev</SpecRow>
+            <SpecRow>Next.js demo UI (chat + graph)</SpecRow>
+            <SpecRow>MIT license — fork freely</SpecRow>
+          </ul>
         </div>
       </div>
     </section>
   );
 }
 
-function Row({
-  I,
-  children,
-}: {
-  I: LucideIcon;
-  children: React.ReactNode;
-}) {
+function SpecRow({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3">
-      <I size={16} className="text-spotify" />
-      <span>{children}</span>
-    </div>
+    <li className="flex items-start gap-2.5">
+      <Check size={16} className="mt-0.5 shrink-0 text-white" />
+      <span className="text-white/95">{children}</span>
+    </li>
   );
 }
 
 /* ─────────── Footer ─────────── */
 function Footer() {
   return (
-    <footer className="border-t border-white/5">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-6 text-xs text-ink-dim">
-        <div>© 2026 The Public Works · Born at the Cline + 2Hero hackathon</div>
-        <div className="flex items-center gap-4">
-          <Link href="/demo" className="hover:text-ink">
-            Try it →
+    <footer className="border-t border-slate-200 bg-white">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-xs text-slate-500">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex h-7 w-7 items-center justify-center rounded-md text-white"
+            style={{ background: HYDRANT_RED }}
+          >
+            <Flame size={15} strokeWidth={2.4} />
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-slate-700">Hydrant</div>
+            <div className="text-[10.5px]">
+              Built by{" "}
+              <span className="font-semibold text-slate-600">The Public Works</span>
+              {" · "}MIT licensed
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-5">
+          <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-slate-800">
+            GitHub
+          </a>
+          <Link href="/demo" className="hover:text-slate-800">
+            Demo
           </Link>
-          <Link href="/present" className="hover:text-ink">
-            Open the deck →
+          <Link href="/present" className="hover:text-slate-800">
+            Deck
           </Link>
+          <a href={`${GITHUB_URL}/blob/main/CONTRIBUTING.md`} target="_blank" rel="noreferrer" className="hover:text-slate-800">
+            Contribute
+          </a>
         </div>
       </div>
     </footer>
@@ -741,22 +809,22 @@ function Footer() {
 }
 
 /* ─────────── Tiny helpers ─────────── */
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function SectionLabel({
+  children,
+  color,
+}: {
+  children: React.ReactNode;
+  color: "red" | "amber" | "blue" | "emerald";
+}) {
+  const cls = {
+    red: "text-red-600",
+    amber: "text-amber-700",
+    blue: "text-blue-700",
+    emerald: "text-emerald-700",
+  }[color];
   return (
-    <div className="text-[11px] font-semibold uppercase tracking-[0.25em] text-spotify">
+    <div className={`text-[11px] font-semibold uppercase tracking-[0.25em] ${cls}`}>
       {children}
     </div>
-  );
-}
-
-function SpotifyMark() {
-  return (
-    <svg viewBox="0 0 100 100" width="28" height="28" aria-hidden="true">
-      <circle cx="50" cy="50" r="48" fill={SPOTIFY} />
-      <path
-        fill="#0A0A0A"
-        d="M30 38c14-6 32-6 46 2 2 1 3 4 1 6-2 2-4 3-7 1-12-7-28-7-39-2-2 1-5 0-6-2-1-2 0-4 5-5zm0 14c12-5 26-5 38 2 2 1 3 3 1 5-2 2-3 3-5 1-10-6-22-6-32-2-2 1-4 0-5-2-1-2 0-3 3-4zm0 12c10-4 22-4 31 2 2 1 2 3 1 4-1 1-3 2-4 1-8-5-18-5-26-2-2 1-3 0-4-1-1-2 0-3 2-4z"
-      />
-    </svg>
   );
 }
