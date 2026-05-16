@@ -1,213 +1,403 @@
-# ctx-mcp — Intelligent Context Navigation for Developer Knowledge
+<div align="center">
 
-A proof-of-concept MCP server that turns a GitHub repo into a navigable
-knowledge layer for AI agents. It indexes **code**, **issues**, **pull
-requests**, **commits**, and **comments** into a hybrid **knowledge graph
-+ vector store**, then exposes context-retrieval tools over MCP/stdio.
+# 🚒 Hydrant
 
-**Headline use case:** point an agent at a bug report and it traces from the
-issue → the most semantically-relevant code → the recent PRs that touched
-that code → the commit that introduced the regression → a proposed fix.
+**AI knowledge layer for incident response.**
+*Open-source · MCP-native · Cited by design.*
 
-## Architecture at a glance
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
+[![MCP Native](https://img.shields.io/badge/MCP-Native-7E57C2.svg)](https://modelcontextprotocol.io)
+[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-```
-Cline (VS Code) — chat model: any Claude on OpenRouter
-        │ (MCP, stdio)
-        ▼
-mcp_server/   (Python, mcp SDK)
-  tools: search_context, get_node, get_neighbors,
-         trace_issue, git_blame, get_pr_diff, list_repos
-        │
-        ▼
-Postgres + pgvector
-  nodes (issue, pr, commit, file, symbol, author, comment, doc_chunk)
-  edges (fixes, modifies, authored_by, references, mentions, on,
-         defined_in, last_modified_by, part_of)
-  chunks(node_id, text, embedding vector(512))   ← Voyage voyage-3-lite
-        ▲
-        │ one-shot
-indexer/  (CLI: python -m indexer <repo>)
-  github_fetcher · parser · graph_builder · embedder
-```
+**[Watch the 2-minute demo →](https://thehydrant.dev)** · [Quickstart](#-quickstart-5-minutes) · [Tools](#-what-you-get) · [Wire into your AI client](#-wire-it-into-your-ai-client) · [Contributing](CONTRIBUTING.md)
 
-The semantic layer (chunks) and the structural layer (nodes/edges) live in
-the same Postgres so a single query can mix kNN with graph traversal.
+</div>
 
-## Quickstart
+---
 
-1. **Bring up Postgres + pgvector**
+## What it does
 
-   ```sh
-   docker compose up -d postgres
-   ```
+When production breaks at 2 a.m., the on-call engineer spends the next 25 minutes hunting through **Slack threads, Linear tickets, GitHub PRs, runbooks, and CODEOWNERS** for *what already happened the last time this broke*.
 
-   The schema in `db/schema.sql` is loaded automatically on first boot.
+Hydrant turns that into a single prompt.
 
-2. **Set up Python**
+It indexes your team's incident knowledge across multiple sources, exposes them through an MCP server, and lets any AI agent (Cline, Claude Code, Claude Desktop) answer questions like:
 
-   ```sh
-   python -m venv .venv && source .venv/bin/activate
-   pip install -e .
-   cp .env.example .env
-   # edit .env: GITHUB_TOKEN, VOYAGE_API_KEY
-   ```
+> *"Auth is throwing 401s on prod after a deploy. Diagnose it, open a tracking ticket, and post the summary to `#incident-…`."*
 
-3. **Index a repo**
+…in ~2 minutes end-to-end, with **every claim citing a clickable source URL**. No black-box answers.
 
-   ```sh
-   python -m indexer https://github.com/<owner>/<name>
-   ```
+<!--
+Add a hero gif/video here once the demo recording is uploaded:
+![Hydrant demo](docs/img/demo.gif)
+-->
 
-   Re-running is idempotent (upserts on natural keys). Rate-limit tip: on
-   Voyage's free tier the default is 3 RPM; adding a billing method on the
-   dashboard lifts it to 2000 RPM at no cost — recommended for any repo
-   bigger than ~300 chunks.
+---
 
-4. **Wire the MCP server into your client**
+## ✨ Why use Hydrant
 
-   `bin/run-mcp.sh` is the single launch path used by every client. It
-   `cd`'s to the repo root, sources `.env`, and execs `python -m mcp_server`
-   from the project's venv — so you never have to put secrets in a
-   client config.
+|  | Hydrant | Closed alternatives |
+|---|---|---|
+| Cross-source synthesis (Slack + Linear + GitHub) | ✅ | Often telemetry-only |
+| Every answer has clickable citations | ✅ | Mostly black-box |
+| Runs inside your AI client of choice | ✅ | Standalone app you have to switch to |
+| Posts the synthesis *back* to your incident channel | ✅ | Answer dies in their app |
+| Self-hosted (your data, your DB) | ✅ | SaaS only |
+| Open source | ✅ MIT | ❌ |
 
-   Pick whichever client(s) you want:
+---
 
-   <details>
-   <summary><strong>Claude Code</strong> — zero-config (just open the repo)</summary>
+## 🚀 Quickstart (5 minutes)
 
-   Already done. The `.mcp.json` at the project root is auto-picked-up
-   on session start — Claude Code's first run inside this directory
-   will prompt you to approve the `ctx` server, after which all 12
-   tools are available.
+The fastest path to the "wow" moment — just GitHub. Slack + Linear are optional and additive.
 
-   To reload after editing the server: `/mcp` in Claude Code.
+```bash
+# 1. Clone
+git clone https://github.com/the-public-works/hydrant && cd hydrant
 
-   No paths to edit; `.mcp.json` uses a relative path that resolves
-   from the project root (which Claude Code spawns the server from).
+# 2. Start Postgres + pgvector
+docker compose up -d postgres
 
-   </details>
+# 3. Configure 3 keys
+cp .env.example .env
+#    edit .env:
+#      DATABASE_URL=postgresql://ctx:ctx@localhost:5432/ctx
+#      GITHUB_TOKEN=ghp_…           (https://github.com/settings/tokens — public_repo)
+#      VOYAGE_API_KEY=pa-…          (https://voyageai.com — free tier; see note ↓)
 
-   <details>
-   <summary><strong>Cline (VS Code extension)</strong></summary>
+# 4. Install + index a repo
+python -m venv .venv && source .venv/bin/activate
+pip install -e .
+python -m indexer github <owner>/<repo>
 
-   Install **Cline** in VS Code. Open Cline → ⚙️ → "MCP Servers" →
-   "Edit Settings" (or directly edit
-   `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`):
-
-   ```json
-   {
-     "mcpServers": {
-       "ctx": {
-         "command": "/absolute/path/to/Cline-Hackathon/bin/run-mcp.sh",
-         "args": [],
-         "disabled": false,
-         "autoApprove": [
-           "search_all", "find_similar_incidents", "get_runbook",
-           "who_owns", "diagnose_incident",
-           "search_context", "get_node", "get_neighbors", "list_repos",
-           "trace_issue", "get_pr_diff", "git_blame"
-         ]
-       }
-     }
-   }
-   ```
-
-   Replace `/absolute/path/to/Cline-Hackathon/` with the actual path
-   on your machine (`pwd` in the repo root prints it).
-
-   Set Cline's **API Provider** to **OpenRouter**, paste your
-   `OPENROUTER_API_KEY`, and pick a Claude model (e.g.
-   `anthropic/claude-sonnet-4.5`). The chat model lives on
-   OpenRouter; the MCP tools come from this repo.
-
-   </details>
-
-   <details>
-   <summary><strong>Claude Desktop</strong> (same JSON, different file)</summary>
-
-   ```bash
-   # macOS path
-   open "$HOME/Library/Application Support/Claude/claude_desktop_config.json"
-   ```
-
-   Paste the same `mcpServers.ctx` block as the Cline config above
-   (with your absolute path). Restart Claude Desktop after saving.
-
-   </details>
-
-5. **Demo prompt** (works in any of the three clients)
-
-   The headline call:
-
-   > Use the `ctx` MCP server. **Diagnose** this incident: *"auth is
-   > throwing 401s after a deploy."* Call `diagnose_incident` first,
-   > then cite the most relevant Slack thread, Linear ticket, and
-   > runbook section by URL.
-
-   The legacy GitHub-only flow still works too:
-
-   > Use the `ctx` MCP server. Investigate issue #N in `<owner>/<name>` —
-   > call `trace_issue` first, then drill into suspect PRs with
-   > `git_blame` and `get_pr_diff`, and propose a fix.
-
-## Web demo (chat + live graph)
-
-A single page where the agent (via OpenRouter) talks to the same MCP
-tools, with the knowledge graph rendered next to the chat. As the
-agent calls tools, the touched nodes pulse on the graph — you can
-literally watch it navigate.
-
-Add to `.env`:
-
-```
-OPENROUTER_API_KEY=sk-or-...
-OPENROUTER_MODEL=anthropic/claude-sonnet-4.5
+# 5. Verify the MCP server boots
+./bin/run-mcp.sh
+#    expect: "hydrant ready" on stderr, then exits when you Ctrl-C
 ```
 
-Two terminals (postgres should already be up and a repo indexed):
+That's it. Now wire it into your AI client — pick one below.
 
-```sh
-# A — FastAPI backend
-source .venv/bin/activate
-python -m api          # http://localhost:8765
+> **Voyage free-tier gotcha:** the default rate limit is 3 requests per minute. Add a payment method on [voyageai.com](https://voyageai.com) — they won't charge you — and the limit jumps to 2,000 RPM. Indexing a real repo at 3 RPM takes ~hour; at 2,000 RPM it's ~2 minutes.
 
-# B — Next.js frontend
-cd frontend
-pnpm install           # first time only
-pnpm dev               # http://localhost:3000
+---
+
+## 🧠 What you get
+
+**17 MCP tools** organized into four families:
+
+<details>
+<summary><strong>Cross-source synthesis (5 tools)</strong></summary>
+
+| Tool | What it returns |
+|---|---|
+| `diagnose_incident(symptom)` | Composite call: similar past incidents + matching runbook + likely owner. Start here. |
+| `find_similar_incidents(symptom)` | Past incidents (Slack channels + Linear tickets) ranked by semantic similarity |
+| `get_runbook(topic)` | Matching runbook sections from your GitHub docs |
+| `who_owns(path)` | CODEOWNERS lookup with last-rule-wins semantics |
+| `search_all(query, source?)` | Cross-source kNN — pass `source` to scope to slack / linear / github |
+
+</details>
+
+<details>
+<summary><strong>GitHub-flavored (7 tools)</strong></summary>
+
+| Tool | What it returns |
+|---|---|
+| `trace_issue(issue_number)` | Issue → suspect code → recent PRs touching that code |
+| `get_pr_diff(pr_number)` | PR metadata + per-file diff |
+| `git_blame(path, line_start, line_end?)` | Blame for those lines, enriched with the indexed commit/PR nodes |
+| `get_node(id)` / `get_neighbors(id)` | Direct graph access |
+| `search_context(query, types?)` | kNN scoped to a single repo |
+| `list_repos()` | What's indexed and how much |
+
+</details>
+
+<details>
+<summary><strong>Slack write (2 tools)</strong></summary>
+
+| Tool | What it does |
+|---|---|
+| `create_slack_channel(name, topic?, purpose?, invite?, initial_message?)` | Spin up `#incident-…` on demand, optionally with the synthesis pre-posted |
+| `post_to_slack(channel, text, thread_ts?)` | Post into an indexed channel (by name or ID) |
+
+</details>
+
+<details>
+<summary><strong>Linear write (3 tools)</strong></summary>
+
+| Tool | What it does |
+|---|---|
+| `create_linear_issue(title, description, priority?, state?)` | Open a tracking ticket with full markdown body |
+| `add_linear_comment(issue_id, body)` | Comment on an existing ticket |
+| `update_linear_issue(issue_id, state?, priority?, …)` | Move state, change priority |
+
+</details>
+
+---
+
+## 🔌 Wire it into your AI client
+
+Pick whichever client you use — Hydrant works the same way through all of them.
+
+<details>
+<summary><strong>Claude Code</strong> — zero-config</summary>
+
+Already done. The `.mcp.json` at the project root is auto-detected on session start. Just `cd` into the repo and Claude Code will prompt to approve the `hydrant` server.
+
+To reload after editing: type `/mcp` in Claude Code.
+
+</details>
+
+<details>
+<summary><strong>Cline (VS Code extension)</strong></summary>
+
+Install **Cline** in VS Code → click ⚙️ → "MCP Servers" → "Edit Settings", or edit directly:
+
+```
+~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json
 ```
 
-Open `http://localhost:3000`. The frontend proxies `/api/*` to the
-FastAPI backend. The MCP server (`python -m mcp_server`) keeps
-working in parallel for Cline / Claude Desktop users.
+Add this block (swap in your absolute path):
 
-## Tools exposed over MCP
-
-| Tool | Purpose |
-| --- | --- |
-| `search_context(query, types?, k=10, repo?)` | kNN over chunks, optional type filter. |
-| `get_node(id)` | Full node row + chunks. |
-| `get_neighbors(id, edge_types?, depth=1, direction="both")` | Recursive graph walk. |
-| `trace_issue(issue_number, repo?, k=8)` | Issue → suspect code → recent PRs touching it. |
-| `git_blame(file_path, line_start, line_end?, repo?)` | Run blame on the local clone, enrich with PR/commit nodes. |
-| `get_pr_diff(pr_number, repo?)` | PR metadata + per-file patches. |
-| `list_repos()` | What's indexed and how much. |
-
-## Layout
-
-```
-indexer/           — CLI: clone → walk → fetch GitHub → embed → upsert
-mcp_server/        — FastMCP stdio server exposing the tools
-db/schema.sql      — nodes / edges / chunks / repos
-docker-compose.yml — postgres+pgvector
-pyproject.toml     — Python deps (mcp, asyncpg, pgvector, httpx, …)
+```json
+{
+  "mcpServers": {
+    "hydrant": {
+      "command": "/absolute/path/to/hydrant/bin/run-mcp.sh",
+      "args": [],
+      "disabled": false,
+      "autoApprove": [
+        "search_all", "find_similar_incidents", "get_runbook",
+        "who_owns", "diagnose_incident",
+        "search_context", "get_node", "get_neighbors", "list_repos",
+        "trace_issue", "get_pr_diff", "git_blame",
+        "create_slack_channel", "post_to_slack",
+        "create_linear_issue", "add_linear_comment", "update_linear_issue"
+      ]
+    }
+  }
+}
 ```
 
-## Why Voyage for embeddings?
+Set Cline's **API Provider** to OpenRouter or Anthropic. Pick a Claude model (Sonnet 4.5 is great for tool calling).
 
-OpenRouter is great for chat completions but doesn't support embeddings
-reliably. Voyage AI gives us a 200M-token-per-month free tier, the
-`voyage-3-lite` model is competitive with the larger OpenAI offerings, and
-its `input_type` (document vs query) gives a measurable retrieval boost on
-mixed code+prose corpora.
+</details>
+
+<details>
+<summary><strong>Claude Desktop</strong></summary>
+
+```bash
+open "$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+```
+
+Paste the same `mcpServers.hydrant` block as above. Restart Claude Desktop.
+
+</details>
+
+### Try it
+
+Paste this into your AI client of choice:
+
+> *"Use the `hydrant` MCP server. Diagnose this incident: 'auth is throwing 401s after a deploy.' Cite the most relevant Slack thread, Linear ticket, and runbook section by URL."*
+
+If the indexed repo has matching content, you'll see `diagnose_incident` fire and the model synthesize a cited answer.
+
+---
+
+## 📡 Add more sources
+
+The GitHub quickstart is the floor. Hydrant gets dramatically more useful with Slack + Linear plugged in.
+
+<details>
+<summary><strong>Slack</strong></summary>
+
+Create a Slack app at [api.slack.com/apps](https://api.slack.com/apps) → add the bot scopes:
+
+```
+channels:read         channels:history
+users:read            users:read.email
+channels:manage       chat:write
+chat:write.customize  chat:write.public
+groups:read           groups:history    (for private channels)
+```
+
+Install to your workspace and copy the **Bot User OAuth Token** (starts `xoxb-`):
+
+```bash
+# .env
+SLACK_BOT_TOKEN=xoxb-…
+
+# Invite the bot to channels you want indexed, then:
+python -m indexer slack --channels 'incident-*'
+```
+
+</details>
+
+<details>
+<summary><strong>Linear</strong></summary>
+
+Generate a personal API key at [linear.app/settings/api](https://linear.app/settings/api):
+
+```bash
+# .env
+LINEAR_API_KEY=lin_api_…
+
+python -m indexer linear --teams ENG
+```
+
+</details>
+
+<details>
+<summary><strong>Notion (alpha)</strong></summary>
+
+The connector exists but isn't wired into the demo. Internal-integration token from [notion.so/profile/integrations](https://notion.so/profile/integrations):
+
+```bash
+# .env
+NOTION_API_KEY=secret_…  # or ntn_…
+
+python -m indexer notion
+```
+
+</details>
+
+---
+
+## 🏗️ Architecture
+
+```
+  ┌───────────┐   ┌────────────┐   ┌───────────┐
+  │ Slack API │   │ Linear API │   │ GitHub API│
+  └─────┬─────┘   └─────┬──────┘   └─────┬─────┘
+        │               │                 │
+        └─────────┬─────┴────────┬────────┘
+                  │              │
+            ┌─────▼──────────────▼─────┐
+            │   indexer/ (Python CLI)  │
+            │  · fetch · parse · chunk │
+            │  · embed (Voyage)        │
+            └───────────┬──────────────┘
+                        │
+                ┌───────▼────────┐
+                │  Postgres +    │
+                │  pgvector      │
+                │  (nodes,       │
+                │   edges,       │
+                │   chunks)      │
+                └───────┬────────┘
+                        │
+        ┌───────────────▼───────────────┐
+        │   mcp_server/ (FastMCP stdio) │
+        │   17 tools                    │
+        └───────────────┬───────────────┘
+                        │
+        ┌───────────────▼───────────────┐
+        │  Your AI client of choice     │
+        │  (Cline / Claude Code /       │
+        │   Claude Desktop / …)         │
+        └───────────────────────────────┘
+```
+
+The graph is hybrid: **nodes** for entities (slack_message, slack_channel, linear_issue, file, pr, commit, author, …), **edges** for relationships (`fixes`, `modifies`, `mentions`, `posted_in`, `replied_to`, `authored_by`, …), and **chunks** for the embedded text (HNSW index over `vector(512)`).
+
+A single SQL query can mix kNN over chunks with graph traversal — that's the trick that lets `diagnose_incident` correlate a Slack panic message to a Linear RCA to a GitHub commit in one round trip.
+
+---
+
+## ⚙️ Configuration
+
+All config lives in `.env` (template at `.env.example`). The minimum to run Hydrant against a GitHub repo:
+
+| Variable | Required for | Where to get it |
+|---|---|---|
+| `DATABASE_URL` | Always | `docker compose up postgres` gives you `postgresql://ctx:ctx@localhost:5432/ctx` |
+| `GITHUB_TOKEN` | GitHub indexer | [github.com/settings/tokens](https://github.com/settings/tokens) — `public_repo` is enough for public repos |
+| `VOYAGE_API_KEY` | Embeddings | [voyageai.com](https://www.voyageai.com/) — free tier |
+| `SLACK_BOT_TOKEN` | Slack indexer + write tools | Slack app → OAuth & Permissions |
+| `LINEAR_API_KEY` | Linear indexer + write tools | [linear.app/settings/api](https://linear.app/settings/api) |
+| `OPENROUTER_API_KEY` | Web demo only (optional) | [openrouter.ai](https://openrouter.ai) |
+| `DEMO_INVITE_USERS` | `create_slack_channel` auto-invites | Comma-separated Slack member IDs (e.g. `U01ABC2DEF,U01XYZ4567`) |
+
+---
+
+## 🗺️ Repo layout
+
+```
+hydrant/
+├── mcp_server/           # The 17 MCP tools (FastMCP / stdio)
+├── indexer/              # Source connectors: github, slack, linear, notion
+├── api/                  # FastAPI backend for the /demo page (optional)
+├── frontend/             # Next.js — landing, /present deck, /demo chat+graph
+├── scripts/              # Demo seeders (seed_slack_demo, seed_linear_demo)
+├── db/schema.sql         # nodes / edges / chunks / repos
+├── bin/run-mcp.sh        # Wrapper used by all MCP clients
+├── docker-compose.yml    # Postgres + pgvector (+ optional frontend)
+├── .mcp.json             # Auto-detected by Claude Code
+├── .env.example          # All env vars documented
+└── pyproject.toml        # Python deps (mcp, asyncpg, pgvector, httpx, fastapi, …)
+```
+
+---
+
+## 💡 Example prompts
+
+Paste any of these into an AI client connected to Hydrant.
+
+> *"Auth is throwing 401s after a deploy — diagnose, open a Linear ticket, and post a summary to `#incident-…`. Link the ticket from the Slack post."*
+
+> *"We're seeing checkout 500s on the canary cohort. What past incidents match? Who owns `src/checkout/`?"*
+
+> *"Is there a runbook for postgres failover warmup? Cite the exact section."*
+
+> *"PR #2156 looks suspicious — what does its diff actually do, and does the description match?"*
+
+> *"Find every Slack thread in the last 30 days that mentions `JWT_ACCESS_EXPIRATION_MINUTES`."*
+
+---
+
+## 🗂️ Roadmap
+
+- [ ] Sentry connector (currently the icon is on the landing page, not yet wired)
+- [ ] Datadog / OpsGenie / PagerDuty connectors
+- [ ] Confluence + Notion (Notion alpha exists in `indexer/notion_*.py`)
+- [ ] Auto-suggested incident channel name based on past patterns
+- [ ] Optional Anthropic-direct embeddings (avoid Voyage dependency)
+- [ ] Helm chart for k8s deploys
+- [ ] Web UI for browsing the knowledge graph (the `/demo` page is the seed)
+
+Have an idea? [Open a discussion](https://github.com/the-public-works/hydrant/discussions).
+
+---
+
+## 🤝 Contributing
+
+We'd love your help. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow.
+
+Specific things we'd welcome PRs for:
+
+- 🔌 **New source connectors** (Sentry, Datadog, Confluence, …) — the existing `indexer/*.py` files are short and templated
+- 🐛 **Bug reports** with a reproduction
+- 📖 **Docs improvements** — typos, clarifications, screenshots
+- 🛠️ **New MCP tools** that compose existing ones
+
+If you're not sure where to start, [open a discussion](https://github.com/the-public-works/hydrant/discussions) first.
+
+---
+
+## 📜 License
+
+[MIT](LICENSE) — do whatever you want, just don't sue us.
+
+---
+
+## 🛠️ Built by
+
+[**The Public Works**](https://github.com/the-public-works) — a small open-source studio building tools for engineers between hackathons.
+
+🥇 Won the [Cline + 2Hero hackathon](https://thehydrant.dev) (Spotify *Intelligent Context Navigation for Developer Knowledge* challenge).
+
+- **Chetan Singh** — [@chetan1029](https://github.com/chetan1029)
+- **Henning Norén** — [@henning-noren](https://github.com/henning-noren)
+
+If Hydrant helps your team — **drop a ⭐ on this repo**. That's how we know to keep shipping.
