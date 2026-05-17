@@ -7,11 +7,12 @@
  *
  * Sister pages:
  *   /present  — slide deck used during the live pitch
+ *   /graph    — local-dev knowledge-graph explorer (footer link)
  *
  * The recorded demo lives on Google Drive (DEMO_VIDEO_URL below). The
- * /demo route still exists in the codebase for local dev but isn't
- * surfaced on this landing — it requires the FastAPI shim which we
- * haven't deployed alongside the static frontend.
+ * /demo and /graph routes still exist in the codebase for local dev but
+ * aren't surfaced as primary CTAs — they require the FastAPI shim which
+ * we haven't deployed alongside the static frontend.
  */
 "use client";
 
@@ -818,7 +819,7 @@ function Architecture() {
             <ul className="mt-2 space-y-2 text-sm text-slate-600">
               <ArchBullet>Postgres + pgvector knowledge graph</ArchBullet>
               <ArchBullet>HNSW vector search + edge traversal</ArchBullet>
-              <ArchBullet>Voyage AI embeddings (512-dim)</ArchBullet>
+              <ArchBullet>OpenAI embeddings (configurable dim)</ArchBullet>
               <ArchBullet>FastMCP stdio transport · self-hosted</ArchBullet>
             </ul>
           </div>
@@ -1107,6 +1108,9 @@ function Footer() {
           </a>
           <Link href="/present" className="hover:text-slate-800">
             Deck
+          </Link>
+          <Link href="/graph" className="hover:text-slate-800">
+            Graph
           </Link>
           <a href={`${GITHUB_URL}/blob/main/CONTRIBUTING.md`} target="_blank" rel="noreferrer" className="hover:text-slate-800">
             Contribute

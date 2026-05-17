@@ -17,6 +17,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import asyncpg
@@ -48,6 +49,26 @@ ISSUE_LINK_RE = re.compile(
     re.IGNORECASE,
 )
 HASH_REF_RE = re.compile(r"(?<![&\w])#(\d+)\b")
+
+
+def _age_cutoff(days: int) -> datetime | None:
+    if days <= 0:
+        return None
+    return datetime.now(timezone.utc) - timedelta(days=days)
+
+
+def _should_fetch_files(pr: dict, cutoff: datetime | None) -> bool:
+    if cutoff is None:
+        return True
+    if pr.get("state") != "closed":
+        return True
+    closed_at = pr.get("closed_at")
+    if not closed_at:
+        return True
+    try:
+        return datetime.fromisoformat(closed_at.replace("Z", "+00:00")) >= cutoff
+    except ValueError:
+        return True
 
 
 @dataclass
@@ -192,6 +213,7 @@ async def _index_github(
     files: dict[str, int],
     walk: WalkResult,
     stats: IndexStats,
+    cfg: Config,
 ) -> tuple[dict[int, int], dict[int, int], dict[str, int]]:
     """Returns: issues (number->node_id), prs (number->node_id), commits (sha->node_id)."""
     issues: dict[int, int] = {}
@@ -200,7 +222,7 @@ async def _index_github(
     authors: dict[str, int] = {}
 
     # Issues
-    async for it in gh.issues(ref):
+    async for it in gh.issues(ref, max_count=(cfg.max_issues or None)):
         nid = await upsert_node(
             conn, type="issue", source_key=_issue_key(ref, it["number"]),
             props={
@@ -219,7 +241,53 @@ async def _index_github(
             await upsert_edge(conn, src=nid, dst=author_id, type="authored_by")
 
     # PRs (and per-PR file modifications)
-    async for pr in gh.pulls(ref):
+    #
+    # The metadata + author + FIXES edges are local DB work and stay inline.
+    # The per-PR `pull_files` HTTP call used to block the loop sequentially;
+    # we now buffer PR numbers and fan out the file fetches with asyncio.gather,
+    # and skip the fetch entirely for PRs closed long ago.
+    age_cutoff = _age_cutoff(cfg.pr_files_max_age_days)
+    pr_files_batch = max(1, cfg.pr_files_batch_size)
+    pending: list[tuple[int, int]] = []  # (pr_number, pr_node_id)
+
+    async def _apply_pr_files(num: int, nid: int, pr_files: list[dict]) -> None:
+        for pf in pr_files:
+            fpath = pf.get("filename")
+            if not fpath:
+                continue
+            file_nid = files.get(fpath)
+            if file_nid is None:
+                # File no longer exists at HEAD (deleted/renamed) — synthesize a stub node
+                file_nid = await upsert_node(
+                    conn, type="file", source_key=_file_key(ref, fpath),
+                    props={"path": fpath, "deleted": True},
+                )
+                files[fpath] = file_nid
+            await upsert_edge(
+                conn, src=nid, dst=file_nid, type="modifies",
+                props={
+                    "additions": pf.get("additions"),
+                    "deletions": pf.get("deletions"),
+                    "status": pf.get("status"),
+                    "patch": (pf.get("patch") or "")[:8000],  # cap patch size
+                },
+            )
+
+    async def _flush_pr_files() -> None:
+        if not pending:
+            return
+        results = await asyncio.gather(
+            *(gh.pull_files(ref, num) for num, _ in pending),
+            return_exceptions=True,
+        )
+        for (num, nid), pr_files in zip(pending, results, strict=True):
+            if isinstance(pr_files, BaseException):
+                log.warning("pull_files failed for #%d: %s", num, pr_files)
+                continue
+            await _apply_pr_files(num, nid, pr_files)
+        pending.clear()
+
+    async for pr in gh.pulls(ref, max_count=(cfg.max_prs or None)):
         nid = await upsert_node(
             conn, type="pr", source_key=_pr_key(ref, pr["number"]),
             props={
@@ -246,33 +314,12 @@ async def _index_github(
             if num in issues:
                 await upsert_edge(conn, src=nid, dst=issues[num], type="fixes")
 
-        # MODIFIES via PR files endpoint
-        try:
-            pr_files = await gh.pull_files(ref, pr["number"])
-        except Exception as e:  # noqa: BLE001
-            log.warning("pull_files failed for #%d: %s", pr["number"], e)
-            pr_files = []
-        for pf in pr_files:
-            fpath = pf.get("filename")
-            if not fpath:
-                continue
-            file_nid = files.get(fpath)
-            if file_nid is None:
-                # File no longer exists at HEAD (deleted/renamed) — synthesize a stub node
-                file_nid = await upsert_node(
-                    conn, type="file", source_key=_file_key(ref, fpath),
-                    props={"path": fpath, "deleted": True},
-                )
-                files[fpath] = file_nid
-            await upsert_edge(
-                conn, src=nid, dst=file_nid, type="modifies",
-                props={
-                    "additions": pf.get("additions"),
-                    "deletions": pf.get("deletions"),
-                    "status": pf.get("status"),
-                    "patch": (pf.get("patch") or "")[:8000],  # cap patch size
-                },
-            )
+        if _should_fetch_files(pr, age_cutoff):
+            pending.append((pr["number"], nid))
+            if len(pending) >= pr_files_batch:
+                await _flush_pr_files()
+
+    await _flush_pr_files()
 
     # Commits (lightweight metadata only)
     async for c in gh.commits(ref):
@@ -318,61 +365,76 @@ async def _index_github(
             commits[f.last_commit_sha] = cnid
         await upsert_edge(conn, src=fnid, dst=cnid, type="last_modified_by")
 
-    # Issue + PR comments
-    async for ic in gh.issue_comments(ref):
-        url = ic.get("issue_url", "")
-        m = re.search(r"/issues/(\d+)$", url)
-        if not m:
-            continue
-        ref_num = int(m.group(1))
-        target_nid = issues.get(ref_num) or prs.get(ref_num)
-        if target_nid is None:
-            continue
-        cid = ic["id"]
-        nid = await upsert_node(
-            conn, type="comment", source_key=_comment_key(ref, "issue", cid),
-            props={
-                "id": cid, "body": ic.get("body"),
-                "html_url": ic.get("html_url"),
-                "created_at": ic.get("created_at"),
-                "kind": "issue",
-            },
-        )
-        stats.comments += 1
-        await upsert_edge(conn, src=nid, dst=target_nid, type="on")
-        author_id = await _ensure_author(conn, authors, ic.get("user"))
-        if author_id:
-            await upsert_edge(conn, src=nid, dst=author_id, type="authored_by")
+    # Comments — fetched per-object so they're scoped to the issues/PRs we
+    # actually ingested (the bulk /issues/comments + /pulls/comments endpoints
+    # ignored caps and returned tens of thousands of irrelevant rows).
+    # HTTP requests fan out via asyncio.gather; DB writes stay sequential.
+    log.info("fetching comments for %d issues / %d PRs ...", len(issues), len(prs))
+    comment_batch = max(1, cfg.pr_files_batch_size)
 
-    async for rc in gh.pull_review_comments(ref):
-        # pull_request_url like .../pulls/123
-        m = re.search(r"/pulls/(\d+)$", rc.get("pull_request_url", ""))
-        if not m:
-            continue
-        ref_num = int(m.group(1))
-        target_nid = prs.get(ref_num)
-        if target_nid is None:
-            continue
-        cid = rc["id"]
-        nid = await upsert_node(
-            conn, type="comment", source_key=_comment_key(ref, "review", cid),
-            props={
-                "id": cid, "body": rc.get("body"),
-                "html_url": rc.get("html_url"),
-                "created_at": rc.get("created_at"),
-                "path": rc.get("path"),
-                "line": rc.get("line"),
-                "kind": "review",
-            },
+    # Conversation comments — issues and PRs both live at /issues/<n>/comments.
+    convo_targets: list[tuple[int, int]] = list(issues.items()) + list(prs.items())
+    for start in range(0, len(convo_targets), comment_batch):
+        chunk = convo_targets[start : start + comment_batch]
+        results = await asyncio.gather(
+            *(gh.issue_comments_for(ref, num) for num, _ in chunk),
+            return_exceptions=True,
         )
-        stats.comments += 1
-        await upsert_edge(conn, src=nid, dst=target_nid, type="on")
-        author_id = await _ensure_author(conn, authors, rc.get("user"))
-        if author_id:
-            await upsert_edge(conn, src=nid, dst=author_id, type="authored_by")
-        # Review comment -> File at that path
-        if rc.get("path") and rc["path"] in files:
-            await upsert_edge(conn, src=nid, dst=files[rc["path"]], type="references")
+        for (num, target_nid), comments in zip(chunk, results, strict=True):
+            if isinstance(comments, BaseException):
+                log.warning("issue_comments_for failed for #%d: %s", num, comments)
+                continue
+            for ic in comments:
+                cid = ic["id"]
+                cnid = await upsert_node(
+                    conn, type="comment",
+                    source_key=_comment_key(ref, "issue", cid),
+                    props={
+                        "id": cid, "body": ic.get("body"),
+                        "html_url": ic.get("html_url"),
+                        "created_at": ic.get("created_at"),
+                        "kind": "issue",
+                    },
+                )
+                stats.comments += 1
+                await upsert_edge(conn, src=cnid, dst=target_nid, type="on")
+                author_id = await _ensure_author(conn, authors, ic.get("user"))
+                if author_id:
+                    await upsert_edge(conn, src=cnid, dst=author_id, type="authored_by")
+
+    # Review (inline code) comments — PRs only.
+    pr_targets: list[tuple[int, int]] = list(prs.items())
+    for start in range(0, len(pr_targets), comment_batch):
+        chunk = pr_targets[start : start + comment_batch]
+        results = await asyncio.gather(
+            *(gh.pull_review_comments_for(ref, num) for num, _ in chunk),
+            return_exceptions=True,
+        )
+        for (num, target_nid), comments in zip(chunk, results, strict=True):
+            if isinstance(comments, BaseException):
+                log.warning("pull_review_comments_for failed for #%d: %s", num, comments)
+                continue
+            for rc in comments:
+                cid = rc["id"]
+                cnid = await upsert_node(
+                    conn, type="comment",
+                    source_key=_comment_key(ref, "review", cid),
+                    props={
+                        "id": cid, "body": rc.get("body"),
+                        "html_url": rc.get("html_url"),
+                        "created_at": rc.get("created_at"),
+                        "path": rc.get("path"),
+                        "line": rc.get("line"),
+                        "kind": "review",
+                    },
+                )
+                stats.comments += 1
+                await upsert_edge(conn, src=cnid, dst=target_nid, type="on")
+                author_id = await _ensure_author(conn, authors, rc.get("user"))
+                if author_id:
+                    await upsert_edge(conn, src=cnid, dst=author_id, type="authored_by")
+                if rc.get("path") and rc["path"] in files:
+                    await upsert_edge(conn, src=cnid, dst=files[rc["path"]], type="references")
 
     stats.authors = len(authors)
     return issues, prs, commits
@@ -394,7 +456,7 @@ def _doc_text_for_node(props: dict, type_: str) -> str | None:
     return None
 
 
-async def _embed_phase(conn: asyncpg.Connection, embedder: Embedder, walk: WalkResult, ref: RepoRef, stats: IndexStats) -> None:
+async def _embed_phase(conn: asyncpg.Connection, embedder: Embedder, walk: WalkResult, ref: RepoRef, stats: IndexStats, cfg: Config) -> None:
     """Build (node_id, text, meta) triples, embed in batches, insert into chunks."""
 
     # Symbols + doc_chunks: take from walk (have the text already in memory).
@@ -439,19 +501,28 @@ async def _embed_phase(conn: asyncpg.Connection, embedder: Embedder, walk: WalkR
     # Wipe prior chunks for these nodes so re-indexing doesn't duplicate
     await clear_chunks_for_nodes(conn, [t[0] for t in triples])
 
-    # Embed in batches
+    # Embed in batches, fanning out OpenAI calls per gather chunk.
     BATCH = 128
-    for i in range(0, len(triples), BATCH):
-        batch = triples[i : i + BATCH]
-        vecs = await embedder.embed_documents([t[1] for t in batch])
-        rows = [
-            (nid, text, vec, meta)
-            for (nid, text, meta), vec in zip(batch, vecs, strict=False)
-            if vec is not None
-        ]
-        await insert_chunks(conn, rows)
-        stats.chunks += len(rows)
-        log.info("embedded %d/%d", min(i + BATCH, len(triples)), len(triples))
+    embed_concurrency = max(1, cfg.embed_concurrency)
+    batches: list[list[tuple[int, str, dict]]] = [
+        triples[i : i + BATCH] for i in range(0, len(triples), BATCH)
+    ]
+    done = 0
+    for gstart in range(0, len(batches), embed_concurrency):
+        gchunk = batches[gstart : gstart + embed_concurrency]
+        results = await asyncio.gather(
+            *(embedder.embed_documents([t[1] for t in b]) for b in gchunk),
+        )
+        for batch, vecs in zip(gchunk, results, strict=True):
+            rows = [
+                (nid, text, vec, meta)
+                for (nid, text, meta), vec in zip(batch, vecs, strict=False)
+                if vec is not None
+            ]
+            await insert_chunks(conn, rows)
+            stats.chunks += len(rows)
+            done += len(batch)
+        log.info("embedded %d/%d", done, len(triples))
 
 
 # --- top-level orchestrator ------------------------------------------------
@@ -471,7 +542,7 @@ async def index_repo(repo_url_or_slug: str, cfg: Config | None = None) -> IndexS
     )
 
     pool = await open_pool(cfg.database_url)
-    embedder = Embedder(cfg.voyage_api_key, cfg.voyage_model)
+    embedder = Embedder(cfg.openai_api_key, cfg.openai_embed_model, cfg.embed_dim)
     stats = IndexStats(
         files=len(walk.files), symbols=len(walk.symbols), doc_chunks=len(walk.doc_chunks),
     )
@@ -481,11 +552,11 @@ async def index_repo(repo_url_or_slug: str, cfg: Config | None = None) -> IndexS
             async with conn.transaction():
                 await _index_repo_meta(conn, ref, walk)
                 files, _symbols, _docs = await _index_local_walk(conn, ref, walk)
-            async with GitHub(cfg.github_token) as gh:
+            async with GitHub(cfg.github_token, concurrency=cfg.github_concurrency) as gh:
                 async with conn.transaction():
-                    await _index_github(conn, gh, ref, files, walk, stats)
+                    await _index_github(conn, gh, ref, files, walk, stats, cfg)
             # Embedding outside the giant transaction so partial progress is durable.
-            await _embed_phase(conn, embedder, walk, ref, stats)
+            await _embed_phase(conn, embedder, walk, ref, stats, cfg)
             row = await conn.fetchrow("SELECT count(*) FROM edges")
             stats.edges = int(row["count"])
     finally:

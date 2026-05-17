@@ -1,92 +1,110 @@
-"""Voyage AI embeddings client (async, batched, retrying).
+"""OpenAI embeddings client (async, batched, retrying).
 
-`voyage-3-lite` returns 512-dim vectors and accepts up to 32k input tokens
-per item. The free tier is rate-limited (3 RPM) — adding a billing method on
-voyageai.com bumps it to 2000 RPM at no cost. The REST `truncation: true`
-default lets the server clip overlong inputs, so we don't pre-tokenize.
+Uses `text-embedding-3-*` models, which support the `dimensions` request
+parameter so we can pick a sub-native size to keep vectors compact (Matryoshka
+truncation). The DB's `chunks.embedding` column dim must match `EMBED_DIM`;
+changing it requires `make db-reset` + a re-index.
 
-The two input_type values matter for retrieval quality: pass "document" when
-indexing the corpus and "query" when embedding a search string.
+Note: `text-embedding-ada-002` does NOT support `dimensions` and is not
+supported by this client.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Literal, Sequence
+import os
+from typing import Sequence
 
 import httpx
 
 log = logging.getLogger(__name__)
 
-VOYAGE_API_URL = "https://api.voyageai.com/v1/embeddings"
+OPENAI_API_URL = "https://api.openai.com/v1/embeddings"
 MAX_BATCH_INPUTS = 128
+# text-embedding-3-* accepts <=8192 tokens per input. Cap by chars (free to
+# measure); 20k chars ≈ 6.6k tokens even at the worst-case ~3 chars/token
+# ratio for dense code. Override via env for pathological inputs.
+MAX_INPUT_CHARS = int(os.getenv("INDEXER_EMBED_MAX_CHARS", "20000"))
+
+
+def _truncate(text: str) -> str:
+    if len(text) <= MAX_INPUT_CHARS:
+        return text
+    log.warning(
+        "truncating embedding input from %d to %d chars",
+        len(text), MAX_INPUT_CHARS,
+    )
+    return text[:MAX_INPUT_CHARS]
 
 
 class Embedder:
-    def __init__(self, api_key: str, model: str = "voyage-3-lite"):
+    def __init__(self, api_key: str, model: str = "text-embedding-3-small", dim: int = 1536):
         self._headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
         self._model = model
+        self._dim = dim
         self._client = httpx.AsyncClient(timeout=60.0)
 
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def _embed(
-        self, texts: Sequence[str], input_type: Literal["document", "query"],
-    ) -> list[list[float]]:
+    async def _embed(self, texts: Sequence[str]) -> list[list[float]]:
         if not texts:
             return []
         out: list[list[float]] = [None] * len(texts)  # type: ignore[list-item]
         for start in range(0, len(texts), MAX_BATCH_INPUTS):
-            batch = list(texts[start : start + MAX_BATCH_INPUTS])
+            batch = [_truncate(t) for t in texts[start : start + MAX_BATCH_INPUTS]]
             for attempt in range(6):
                 try:
                     resp = await self._client.post(
-                        VOYAGE_API_URL,
+                        OPENAI_API_URL,
                         headers=self._headers,
                         json={
                             "model": self._model,
                             "input": batch,
-                            "input_type": input_type,
-                            "truncation": True,
+                            "dimensions": self._dim,
+                            "encoding_format": "float",
                         },
                     )
                     if resp.status_code == 429:
                         wait = float(resp.headers.get("retry-after", "5"))
-                        log.warning("voyage 429, sleeping %.1fs", wait)
+                        log.warning("openai 429, sleeping %.1fs", wait)
                         await asyncio.sleep(min(wait, 60))
                         continue
                     resp.raise_for_status()
                     data = resp.json()["data"]
-                    # Voyage returns objects with `index` for ordering
                     data.sort(key=lambda d: d["index"])
                     for i, item in enumerate(data):
                         out[start + i] = item["embedding"]
                     break
                 except httpx.HTTPStatusError as e:
-                    if attempt == 5:
-                        log.error("voyage failed: %s — body=%s", e, e.response.text[:500])
+                    code = e.response.status_code
+                    # 4xx (other than 429, handled above) won't recover with retries.
+                    if 400 <= code < 500 and code != 429:
+                        log.error("openai %d (non-retryable): %s",
+                                  code, e.response.text[:500])
                         raise
-                    log.warning("voyage %s on attempt %d", e.response.status_code, attempt + 1)
+                    if attempt == 5:
+                        log.error("openai failed: %s — body=%s", e, e.response.text[:500])
+                        raise
+                    log.warning("openai %s on attempt %d", code, attempt + 1)
                     await asyncio.sleep(2**attempt)
                 except Exception as e:  # noqa: BLE001
                     if attempt == 5:
                         raise
-                    log.warning("voyage error on attempt %d: %s", attempt + 1, e)
+                    log.warning("openai error on attempt %d: %s", attempt + 1, e)
                     await asyncio.sleep(2**attempt)
         return out  # type: ignore[return-value]
 
     async def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
-        return await self._embed(texts, "document")
+        return await self._embed(texts)
 
     async def embed_query(self, text: str) -> list[float]:
-        [vec] = await self._embed([text], "query")
+        [vec] = await self._embed([text])
         return vec
 
-    # Back-compat helper — used to be the only entrypoint.
     async def embed(self, texts: Sequence[str]) -> list[list[float]]:
         return await self.embed_documents(texts)

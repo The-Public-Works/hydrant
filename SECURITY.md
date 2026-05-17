@@ -46,7 +46,7 @@ Out of scope:
 If you're self-hosting Hydrant, please:
 
 - **Never commit `.env`.** It's in `.gitignore` for a reason — it holds your
-  Slack bot token, Linear API key, GitHub token, and Voyage key.
+  Slack bot token, Linear API key, GitHub token, and OpenAI key.
 - **Scope tokens narrowly.** GitHub token: `public_repo` is enough for most
   use cases. Slack bot: only the scopes listed in the README.
 - **Run Postgres on a private network.** The default Docker Compose binds to

@@ -41,7 +41,7 @@ help:
 setup: $(VENV) .env db-up db-migrate ## Create venv, install deps, copy .env, start Postgres, apply schema
 	@echo ""
 	@echo "✓ Hydrant is set up."
-	@echo "  Next: edit .env to add GITHUB_TOKEN + VOYAGE_API_KEY,"
+	@echo "  Next: edit .env to add GITHUB_TOKEN + OPENAI_API_KEY,"
 	@echo "        then 'make index-github REPO=owner/name'."
 
 $(VENV):
@@ -54,15 +54,25 @@ $(VENV):
 
 # ─── database ──────────────────────────────────────────────────────────
 
-.PHONY: db-up db-down db-migrate db-psql
+.PHONY: db-up db-down db-migrate db-reset db-psql
 db-up: ## Start Postgres + pgvector in Docker
 	docker compose up -d postgres
 
 db-down: ## Stop the Postgres container
 	docker compose stop postgres
 
-db-migrate: ## Apply db/schema.sql to the running Postgres
-	docker compose exec -T postgres psql -U ctx -d ctx < db/schema.sql
+db-migrate: ## Apply db/schema.sql (substitutes EMBED_DIM into the vector column)
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	  EMBED_DIM=$${EMBED_DIM:-1536}; \
+	  echo "→ applying schema with vector($$EMBED_DIM)"; \
+	  sed "s/__EMBED_DIM__/$$EMBED_DIM/g" db/schema.sql \
+	    | docker compose exec -T postgres psql -U ctx -d ctx
+
+db-reset: ## Drop and recreate the schema (needed when EMBED_DIM changes — wipes data)
+	@echo "→ dropping all tables in the ctx database"
+	@docker compose exec -T postgres psql -U ctx -d ctx -c \
+	  "DROP TABLE IF EXISTS chunks, edges, nodes, repos CASCADE;"
+	@$(MAKE) db-migrate
 
 db-psql: ## Open a psql shell against the local Postgres
 	docker compose exec postgres psql -U ctx -d ctx

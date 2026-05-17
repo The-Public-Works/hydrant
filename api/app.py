@@ -141,6 +141,63 @@ async def graph(
     }
 
 
+@app.get("/api/node/{node_id}")
+async def node_detail(node_id: int) -> dict[str, Any]:
+    """A single node plus its 1-hop neighborhood — backs the /graph side panel."""
+    pool = STATE.pool
+    assert pool is not None
+    async with pool.acquire() as conn:
+        node = await conn.fetchrow(
+            "SELECT id, type, source_key, props FROM nodes WHERE id=$1", node_id,
+        )
+        if node is None:
+            raise HTTPException(status_code=404, detail=f"node {node_id} not found")
+        edges = await conn.fetch(
+            """
+            SELECT src, dst, type, props
+            FROM edges
+            WHERE src=$1 OR dst=$1
+            LIMIT 500
+            """,
+            node_id,
+        )
+        neighbor_ids = {int(e["src"]) for e in edges} | {int(e["dst"]) for e in edges}
+        neighbor_ids.discard(node_id)
+        neighbors = []
+        if neighbor_ids:
+            neighbors = await conn.fetch(
+                "SELECT id, type, source_key, props FROM nodes WHERE id = ANY($1::bigint[])",
+                list(neighbor_ids),
+            )
+
+    return {
+        "node": {
+            "id": int(node["id"]),
+            "type": node["type"],
+            "source_key": node["source_key"],
+            "props": node["props"],
+        },
+        "neighbors": [
+            {
+                "id": int(n["id"]),
+                "type": n["type"],
+                "source_key": n["source_key"],
+                "props": n["props"],
+            }
+            for n in neighbors
+        ],
+        "edges": [
+            {
+                "src": int(e["src"]),
+                "dst": int(e["dst"]),
+                "type": e["type"],
+                "props": e["props"],
+            }
+            for e in edges
+        ],
+    }
+
+
 @app.get("/api/chat")
 async def chat(
     q: str = Query(..., min_length=1, max_length=4000),

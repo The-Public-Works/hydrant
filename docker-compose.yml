@@ -6,9 +6,12 @@ services:
       POSTGRES_USER: ctx
       POSTGRES_DB: ctx
       POSTGRES_PASSWORD: ctx
+    # The schema is applied by `make db-migrate`, which substitutes EMBED_DIM
+    # into the templated db/schema.sql. We don't bind-mount the SQL into
+    # /docker-entrypoint-initdb.d/ — the placeholder would break psql at
+    # container init.
     volumes:
       - ctx-postgres-data:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/00-schema.sql:ro
     ports:
       - "5432:5432"
     healthcheck:

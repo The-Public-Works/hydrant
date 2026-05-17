@@ -31,12 +31,14 @@ CREATE INDEX IF NOT EXISTS edges_dst_type_idx ON edges (dst, type);
 CREATE UNIQUE INDEX IF NOT EXISTS edges_unique_idx ON edges (src, dst, type);
 
 -- Embedding chunks. Multiple chunks per node (e.g. a long doc split by section).
--- 512 = voyage-3-lite output dimension.
+-- __EMBED_DIM__ is substituted by `make db-migrate` from the EMBED_DIM env var
+-- (default 1536, the native size of text-embedding-3-small). Changing the dim
+-- requires `make db-reset` + a re-index — pgvector columns are fixed-dim.
 CREATE TABLE IF NOT EXISTS chunks (
     id          BIGSERIAL PRIMARY KEY,
     node_id     BIGINT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
     text        TEXT NOT NULL,
-    embedding   vector(512) NOT NULL,
+    embedding   vector(__EMBED_DIM__) NOT NULL,
     meta        JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 CREATE INDEX IF NOT EXISTS chunks_node_idx ON chunks (node_id);

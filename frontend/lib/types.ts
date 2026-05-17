@@ -19,6 +19,19 @@ export type GraphPayload = {
   edges: GraphEdge[];
 };
 
+export type NodeBase = {
+  id: number;
+  type: string;
+  source_key: string;
+  props: Record<string, unknown>;
+};
+
+export type NodeDetail = {
+  node: NodeBase;
+  neighbors: NodeBase[];
+  edges: GraphEdge[];
+};
+
 export type RepoSummary = {
   owner: string;
   name: string;

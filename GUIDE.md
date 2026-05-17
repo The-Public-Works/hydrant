@@ -373,7 +373,9 @@ cd frontend && pnpm dev &                          # website on :3000
 | MCP tools missing in Cline | Click the refresh icon in MCP Servers panel |
 | Postgres password rejected | Another local postgres on 5432 — `docker stop kdjango-postgres-1` then `docker compose up -d postgres` |
 | Slack post fails | Bot not in channel — `python _invite_now.py` or `/invite @hydrant` |
-| Voyage rate-limited | Add a payment method on voyageai.com (no charge, lifts to 2k RPM) |
+| OpenAI 429 / rate-limited | Lower `MAX_BATCH_INPUTS` in `indexer/embedder.py` or wait — the embedder already retries with exponential backoff. |
+| `dimensions` parameter rejected | You're on an unsupported model (e.g. `text-embedding-ada-002`). Use `text-embedding-3-small` or `-3-large`. |
+| Vector dim mismatch on insert | DB column dim doesn't match `EMBED_DIM`. Run `make db-reset` then re-index. |
 | Linear `400` on tool call | Hit our team-key/number filter; re-check the GraphQL query in `linear_fetcher.py` |
 
 ---

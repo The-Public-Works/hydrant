@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import dataclasses
 import logging
 import sys
 
@@ -20,6 +21,18 @@ from .config import Config
 
 def _add_github_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("repo", help="GitHub repo URL or owner/name slug")
+    p.add_argument(
+        "--max-prs", type=int, default=None,
+        help="Hard cap on PRs to iterate. 0 or omitted = no cap.",
+    )
+    p.add_argument(
+        "--max-issues", type=int, default=None,
+        help="Hard cap on issues to iterate. 0 or omitted = no cap.",
+    )
+    p.add_argument(
+        "--pr-files-max-age-days", type=int, default=None,
+        help="Skip diffing PRs closed more than N days ago. 0 = never skip.",
+    )
 
 
 def _add_slack_args(p: argparse.ArgumentParser) -> None:
@@ -104,6 +117,15 @@ def main(argv: list[str] | None = None) -> int:
     # punish a connector you're not using.
     if args.source == "github":
         from .run import index_repo
+        overrides = {
+            k: v for k, v in {
+                "max_prs": args.max_prs,
+                "max_issues": args.max_issues,
+                "pr_files_max_age_days": args.pr_files_max_age_days,
+            }.items() if v is not None
+        }
+        if overrides:
+            cfg = dataclasses.replace(cfg, **overrides)
         stats = asyncio.run(index_repo(args.repo, cfg))
     elif args.source == "slack":
         from .slack_run import index_slack

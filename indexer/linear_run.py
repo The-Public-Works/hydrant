@@ -281,7 +281,7 @@ async def index_linear(
         )
 
     pool = await open_pool(cfg.database_url)
-    embedder = Embedder(cfg.voyage_api_key, cfg.voyage_model)
+    embedder = Embedder(cfg.openai_api_key, cfg.openai_embed_model, cfg.embed_dim)
     stats = LinearStats()
 
     try:

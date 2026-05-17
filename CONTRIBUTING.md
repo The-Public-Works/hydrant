@@ -35,7 +35,7 @@ You'll need:
 - **Python 3.11+** (the codebase uses modern typing)
 - **Docker** (for Postgres + pgvector locally)
 - **Node 20+ / pnpm** (only if you're touching `frontend/`)
-- A **Voyage AI** key for embeddings — free tier works for small repos
+- An **OpenAI API** key for embeddings (`text-embedding-3-small` by default)
 
 ## Project layout
 

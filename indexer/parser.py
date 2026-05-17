@@ -26,6 +26,12 @@ TEXT_EXTS = {
     ".md", ".rst", ".txt", ".yaml", ".yml", ".toml", ".json", ".sql",
 }
 MAX_FILE_BYTES = 512 * 1024  # skip blobs larger than 512 KiB
+WALK_LOG_EVERY = 500
+
+
+def _safe_repo_url(repo_url: str) -> str:
+    """Strip embedded credentials before logging the clone URL."""
+    return re.sub(r"https://[^@/]+@", "https://", repo_url)
 
 
 @dataclass
@@ -78,8 +84,9 @@ def _run_git(repo_dir: Path, *args: str) -> str:
 
 def ensure_clone(repo_url: str, dest: Path) -> Path:
     """Clone or update a working copy. Returns the local path."""
+    safe_url = _safe_repo_url(repo_url)
     if dest.exists() and (dest / ".git").exists():
-        # Refresh
+        log.info("refreshing %s", dest)
         try:
             _run_git(dest, "fetch", "--depth=1", "origin")
             default = _run_git(dest, "remote", "show", "origin")
@@ -89,17 +96,19 @@ def ensure_clone(repo_url: str, dest: Path) -> Path:
             _run_git(dest, "checkout", branch)
             _run_git(dest, "reset", "--hard", f"origin/{branch}")
         except subprocess.CalledProcessError:
-            log.warning("fetch failed for %s, re-cloning", repo_url)
+            log.warning("fetch failed for %s, re-cloning", safe_url)
             subprocess.run(["rm", "-rf", str(dest)], check=True)
             return ensure_clone(repo_url, dest)
+        log.info("refreshed %s", dest)
         return dest
 
     dest.parent.mkdir(parents=True, exist_ok=True)
+    log.info("cloning %s ...", safe_url)
     subprocess.run(
-        ["git", "clone", "--depth=50", repo_url, str(dest)],
+        ["git", "clone", "--progress", "--depth=50", repo_url, str(dest)],
         check=True,
-        capture_output=True,
     )
+    log.info("cloned %s", dest)
     return dest
 
 
@@ -182,18 +191,30 @@ def _split_markdown(file_path: str, source: str) -> list[DocChunkRecord]:
     return out
 
 
-def _last_commit_for(repo_dir: Path, rel_path: str) -> tuple[str | None, str | None]:
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(repo_dir), "log", "-1", "--format=%H%x09%cI", "--", rel_path],
-            check=True, capture_output=True, text=True,
-        ).stdout.strip()
-        if not out:
-            return None, None
-        sha, _, when = out.partition("\t")
-        return sha, when or None
-    except subprocess.CalledProcessError:
-        return None, None
+def _last_commits_by_path(repo_dir: Path) -> dict[str, tuple[str, str | None]]:
+    """Single `git log --name-only` pass: returns {rel_path: (sha, committer_iso)}
+    for the most recent commit that touched each path in the cloned window.
+    Replaces a per-file subprocess that was the dominant cost on large repos.
+    Merge commits emit no file list by default, so files whose only recent
+    touch was a merge get attributed to the next non-merge commit instead."""
+    out = subprocess.run(
+        ["git", "-C", str(repo_dir), "log", "--name-only", "--format=\x1f%H%x09%cI"],
+        check=True, capture_output=True, text=True,
+    ).stdout
+    last: dict[str, tuple[str, str | None]] = {}
+    cur_sha: str | None = None
+    cur_when: str | None = None
+    for line in out.splitlines():
+        if not line:
+            continue
+        if line.startswith("\x1f"):
+            sha, _, when = line[1:].partition("\t")
+            cur_sha = sha or None
+            cur_when = when or None
+            continue
+        if cur_sha is not None and line not in last:
+            last[line] = (cur_sha, cur_when)
+    return last
 
 
 def walk_repo(repo_dir: Path) -> WalkResult:
@@ -207,6 +228,9 @@ def walk_repo(repo_dir: Path) -> WalkResult:
         default_branch = "main"
 
     result = WalkResult(head_sha=head_sha, default_branch=default_branch)
+    log.info("walking %s", repo_dir)
+    last_commits = _last_commits_by_path(repo_dir)
+    n = 0
 
     for path in repo_dir.rglob("*"):
         if not path.is_file():
@@ -228,7 +252,7 @@ def walk_repo(repo_dir: Path) -> WalkResult:
         except OSError:
             continue
 
-        last_sha, last_when = _last_commit_for(repo_dir, rel)
+        last_sha, last_when = last_commits.get(rel, (None, None))
         result.files.append(FileRecord(
             path=rel, language=_detect_language(path),
             size=size, last_commit_sha=last_sha, last_commit_at=last_when,
@@ -237,5 +261,9 @@ def walk_repo(repo_dir: Path) -> WalkResult:
             result.symbols.extend(_extract_python_symbols(rel, source))
         elif path.suffix == ".md":
             result.doc_chunks.extend(_split_markdown(rel, source))
+
+        n += 1
+        if n % WALK_LOG_EVERY == 0:
+            log.info("walked %d files so far", n)
 
     return result

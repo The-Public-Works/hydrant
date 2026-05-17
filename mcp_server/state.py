@@ -21,7 +21,9 @@ class ServerState:
     async def startup(self) -> None:
         self.cfg = Config.load()
         self.pool = await open_pool(self.cfg.database_url)
-        self.embedder = Embedder(self.cfg.voyage_api_key, self.cfg.voyage_model)
+        self.embedder = Embedder(
+            self.cfg.openai_api_key, self.cfg.openai_embed_model, self.cfg.embed_dim,
+        )
 
     async def shutdown(self) -> None:
         if self.embedder:

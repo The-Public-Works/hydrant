@@ -14,6 +14,19 @@ import asyncpg
 from pgvector.asyncpg import register_vector
 
 
+def _scrub_nuls(value: Any) -> Any:
+    """Recursively strip U+0000 from strings inside a jsonb-bound value.
+    Postgres text/jsonb cannot represent NUL bytes; some GitHub issue bodies
+    contain them (pasted binary/log fragments)."""
+    if isinstance(value, str):
+        return value.replace("\x00", "") if "\x00" in value else value
+    if isinstance(value, dict):
+        return {k: _scrub_nuls(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_scrub_nuls(v) for v in value]
+    return value
+
+
 async def open_pool(database_url: str, min_size: int = 1, max_size: int = 8) -> asyncpg.Pool:
     async def _init(conn: asyncpg.Connection) -> None:
         await register_vector(conn)
@@ -50,8 +63,8 @@ async def upsert_node(
         RETURNING id
         """,
         type,
-        source_key,
-        props or {},
+        _scrub_nuls(source_key),
+        _scrub_nuls(props or {}),
     )
     return int(row["id"])
 
@@ -74,7 +87,7 @@ async def upsert_edge(
         src,
         dst,
         type,
-        props or {},
+        _scrub_nuls(props or {}),
     )
 
 
@@ -85,12 +98,16 @@ async def insert_chunks(
     """rows = [(node_id, text, embedding, meta), ...]."""
     if not rows:
         return
+    scrubbed = [
+        (node_id, _scrub_nuls(text), embedding, _scrub_nuls(meta))
+        for (node_id, text, embedding, meta) in rows
+    ]
     await conn.executemany(
         """
         INSERT INTO chunks (node_id, text, embedding, meta)
         VALUES ($1, $2, $3, $4::jsonb)
         """,
-        rows,
+        scrubbed,
     )
 
 

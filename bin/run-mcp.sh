@@ -5,7 +5,7 @@
 #   1. The working directory must be the project root, so `python -m
 #      mcp_server` resolves and so `.env` is found by python-dotenv.
 #   2. Environment variables from .env must be loaded (DATABASE_URL,
-#      VOYAGE_API_KEY, etc.) before the python process starts.
+#      OPENAI_API_KEY, etc.) before the python process starts.
 #   3. The interpreter must be the project's venv, not whatever python
 #      happens to be on PATH for the MCP client.
 #

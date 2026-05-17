@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { forceCollide } from "d3-force";
 import type { ForceGraphMethods } from "react-force-graph-2d";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -10,7 +11,7 @@ import { GraphPayload } from "@/lib/types";
 // react-force-graph-2d touches `window`; load only on the client.
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
 
-const NODE_COLORS: Record<string, string> = {
+export const NODE_COLORS: Record<string, string> = {
   issue: "#fb7185",
   pr: "#c084fc",
   commit: "#fbbf24",
@@ -22,6 +23,10 @@ const NODE_COLORS: Record<string, string> = {
 };
 
 const HIGHLIGHT_MS = 2500;
+
+function nodeRadius(degree: number): number {
+  return 2 + Math.min(6, Math.sqrt(degree) * 0.6);
+}
 
 type FGNode = {
   id: number;
@@ -37,7 +42,21 @@ type FGLink = {
   type: string;
 };
 
-export function GraphPanel({ repo }: { repo: string | null }) {
+export function GraphPanel({
+  repo,
+  onNodeClick,
+  selectedId = null,
+  typeFilter,
+  searchQuery,
+  onLoaded,
+}: {
+  repo: string | null;
+  onNodeClick?: (id: number) => void;
+  selectedId?: number | null;
+  typeFilter?: Set<string>;
+  searchQuery?: string;
+  onLoaded?: (counts: { nodes: number; edges: number }) => void;
+}) {
   const [graph, setGraph] = useState<GraphPayload | null>(null);
   const [hover, setHover] = useState<FGNode | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +65,12 @@ export function GraphPanel({ repo }: { repo: string | null }) {
   const rafRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
+  // Stash onLoaded in a ref so the fetch effect doesn't refire when the
+  // parent passes a fresh arrow each render.
+  const onLoadedRef = useRef(onLoaded);
+  useEffect(() => {
+    onLoadedRef.current = onLoaded;
+  }, [onLoaded]);
 
   // Resize observer so the canvas fills its container.
   useEffect(() => {
@@ -72,7 +97,10 @@ export function GraphPanel({ repo }: { repo: string | null }) {
         if (!r.ok) throw new Error(await r.text());
         return r.json() as Promise<GraphPayload>;
       })
-      .then(setGraph)
+      .then((g) => {
+        setGraph(g);
+        onLoadedRef.current?.({ nodes: g.nodes.length, edges: g.edges.length });
+      })
       .catch((e) => {
         if (ctrl.signal.aborted) return;
         setError(e instanceof Error ? e.message : String(e));
@@ -118,19 +146,50 @@ export function GraphPanel({ repo }: { repo: string | null }) {
 
   const data = useMemo(() => {
     if (!graph) return { nodes: [], links: [] };
-    const nodes: FGNode[] = graph.nodes.map((n) => ({
-      id: n.id,
-      type: n.type,
-      source_key: n.source_key,
-      props: n.props,
-      degree: n.degree,
-    }));
+    const nodes: FGNode[] = graph.nodes
+      .filter((n) => !typeFilter || typeFilter.has(n.type))
+      .map((n) => ({
+        id: n.id,
+        type: n.type,
+        source_key: n.source_key,
+        props: n.props,
+        degree: n.degree,
+      }));
     const ids = new Set(nodes.map((n) => n.id));
     const links: FGLink[] = graph.edges
       .filter((e) => ids.has(e.src) && ids.has(e.dst))
       .map((e) => ({ source: e.src, target: e.dst, type: e.type }));
     return { nodes, links };
-  }, [graph]);
+  }, [graph, typeFilter]);
+
+  // Tune the d3 simulation after data lands so nodes don't pile into a blob.
+  // The library ships charge+link+center by default but no collision; for ~600
+  // nodes the default charge (-30) is also too weak to spread out hub files.
+  useEffect(() => {
+    const fg = fgRef.current;
+    if (!fg || data.nodes.length === 0) return;
+    fg.d3Force("charge")?.strength(-160);
+    fg.d3Force("link")?.distance(40).strength(0.6);
+    // d3-force's NodeDatum constraint and react-force-graph's typing don't
+    // line up; the runtime call is fine — just typed loosely here.
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const radiusFn = (node: any) => nodeRadius((node as FGNode).degree ?? 0) + 2;
+    fg.d3Force("collide", forceCollide(radiusFn as any) as any);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+    fg.d3ReheatSimulation();
+  }, [data]);
+
+  const searchLower = (searchQuery ?? "").trim().toLowerCase();
+  const matchesSearch = (n: FGNode): boolean => {
+    if (!searchLower) return true;
+    if (n.source_key.toLowerCase().includes(searchLower)) return true;
+    const props = n.props as Record<string, unknown>;
+    for (const key of ["title", "path", "name", "sha", "login", "file_path"]) {
+      const v = props[key];
+      if (typeof v === "string" && v.toLowerCase().includes(searchLower)) return true;
+    }
+    return false;
+  };
 
   if (!repo) {
     return (
@@ -165,13 +224,28 @@ export function GraphPanel({ repo }: { repo: string | null }) {
         nodeRelSize={4}
         linkColor={() => "rgba(120,130,150,0.25)"}
         linkWidth={0.5}
-        cooldownTicks={120}
+        cooldownTicks={200}
         onNodeHover={(n) => setHover((n as FGNode | null) ?? null)}
+        onNodeClick={(n) => {
+          if (onNodeClick) onNodeClick((n as FGNode).id);
+        }}
         nodeCanvasObjectMode={() => "after"}
         nodeCanvasObject={(node, ctx, globalScale) => {
           const n = node as FGNode & { x: number; y: number };
-          const baseR = 3 + Math.min(8, Math.sqrt(n.degree));
-          const color = NODE_COLORS[n.type] ?? "#94a3b8";
+          const baseR = nodeRadius(n.degree);
+          const baseColor = NODE_COLORS[n.type] ?? "#94a3b8";
+          const dimmed = !matchesSearch(n);
+          const fillStyle = dimmed ? withAlpha(baseColor, 0.15) : baseColor;
+          const isSelected = selectedId !== null && selectedId === n.id;
+
+          // Persistent ring for the selected node.
+          if (isSelected) {
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, baseR + 5, 0, 2 * Math.PI);
+            ctx.strokeStyle = "rgba(56,189,248,0.95)";
+            ctx.lineWidth = 2 / globalScale;
+            ctx.stroke();
+          }
 
           // Highlight pulse if recently visited.
           const at = highlightedRef.current.get(n.id);
@@ -192,11 +266,11 @@ export function GraphPanel({ repo }: { repo: string | null }) {
 
           ctx.beginPath();
           ctx.arc(n.x, n.y, baseR, 0, 2 * Math.PI);
-          ctx.fillStyle = color;
+          ctx.fillStyle = fillStyle;
           ctx.fill();
 
           // Labels for high-degree nodes only (otherwise too noisy).
-          if (n.degree > 8 && globalScale > 1.2) {
+          if (!dimmed && n.degree > 8 && globalScale > 1.2) {
             const label = shortLabel(n);
             ctx.font = `${10 / globalScale}px ui-sans-serif, system-ui`;
             ctx.fillStyle = "rgba(231,234,238,0.85)";
@@ -208,6 +282,15 @@ export function GraphPanel({ repo }: { repo: string | null }) {
       {hover && <HoverCard node={hover} />}
     </div>
   );
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  // hex is "#rrggbb" — fall back gracefully if it isn't.
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 function shortLabel(n: FGNode): string {

@@ -64,7 +64,7 @@ cp .env.example .env
 #    edit .env:
 #      DATABASE_URL=postgresql://ctx:ctx@localhost:5432/ctx
 #      GITHUB_TOKEN=ghp_…           (https://github.com/settings/tokens — public_repo)
-#      VOYAGE_API_KEY=pa-…          (https://voyageai.com — free tier; see note ↓)
+#      OPENAI_API_KEY=sk-…          (https://platform.openai.com/api-keys)
 
 # 4. Install + index a repo
 python -m venv .venv && source .venv/bin/activate
@@ -78,7 +78,7 @@ python -m indexer github <owner>/<repo>
 
 That's it. Now wire it into your AI client — pick one below.
 
-> **Voyage free-tier gotcha:** the default rate limit is 3 requests per minute. Add a payment method on [voyageai.com](https://voyageai.com) — they won't charge you — and the limit jumps to 2,000 RPM. Indexing a real repo at 3 RPM takes ~hour; at 2,000 RPM it's ~2 minutes.
+> **Embedding dim:** defaults to `text-embedding-3-small` at 1536 dims. Override `OPENAI_EMBED_MODEL` / `EMBED_DIM` in `.env` if you want a smaller (cheaper / faster) vector — e.g. `EMBED_DIM=512`. Changing the dim requires `make db-reset` (drops the `chunks` table) followed by a re-index, because pgvector columns are fixed-dim.
 
 ---
 
@@ -276,7 +276,7 @@ python -m indexer notion
             ┌─────▼──────────────▼─────┐
             │   indexer/ (Python CLI)  │
             │  · fetch · parse · chunk │
-            │  · embed (Voyage)        │
+            │  · embed (OpenAI)        │
             └───────────┬──────────────┘
                         │
                 ┌───────▼────────┐
@@ -313,7 +313,7 @@ All config lives in `.env` (template at `.env.example`). The minimum to run Hydr
 |---|---|---|
 | `DATABASE_URL` | Always | `docker compose up postgres` gives you `postgresql://ctx:ctx@localhost:5432/ctx` |
 | `GITHUB_TOKEN` | GitHub indexer | [github.com/settings/tokens](https://github.com/settings/tokens) — `public_repo` is enough for public repos |
-| `VOYAGE_API_KEY` | Embeddings | [voyageai.com](https://www.voyageai.com/) — free tier |
+| `OPENAI_API_KEY` | Embeddings | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
 | `SLACK_BOT_TOKEN` | Slack indexer + write tools | Slack app → OAuth & Permissions |
 | `LINEAR_API_KEY` | Linear indexer + write tools | [linear.app/settings/api](https://linear.app/settings/api) |
 | `OPENROUTER_API_KEY` | Web demo only (optional) | [openrouter.ai](https://openrouter.ai) |
@@ -362,9 +362,8 @@ Paste any of these into an AI client connected to Hydrant.
 - [ ] Datadog / OpsGenie / PagerDuty connectors
 - [ ] Confluence + Notion (Notion alpha exists in `indexer/notion_*.py`)
 - [ ] Auto-suggested incident channel name based on past patterns
-- [ ] Optional Anthropic-direct embeddings (avoid Voyage dependency)
+- [ ] Pluggable embedding providers (Voyage / Cohere / local) — currently OpenAI only
 - [ ] Helm chart for k8s deploys
-- [ ] Web UI for browsing the knowledge graph (the `/demo` page is the seed)
 
 Have an idea? [Open a discussion](https://github.com/the-public-works/hydrant/discussions).
 
