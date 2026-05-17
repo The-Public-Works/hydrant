@@ -775,12 +775,12 @@ function Architecture() {
             <ArchRow I={Slack} label="Slack" detail="Threads · messages" />
             <ArchRow I={Layers} label="Linear" detail="Issues · comments" />
             <ArchRow I={Github} label="GitHub" detail="PRs · runbooks · code" />
+            <ArchRow I={BookOpen} label="Notion" detail="Docs · runbooks" />
             <div className="mt-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
               <span className="h-px flex-1 bg-slate-300" />
               Coming soon
               <span className="h-px flex-1 bg-slate-300" />
             </div>
-            <ArchRowSoon I={BookOpen} label="Notion" detail="Docs · runbooks" />
             <ArchRowSoon I={AlertTriangle} label="Sentry" detail="Alerts · errors" />
             <ArchRowSoon I={Briefcase} label="Jira" detail="Tickets · epics" />
             <p className="mt-1 px-1 text-[11px] italic leading-snug text-slate-500">
