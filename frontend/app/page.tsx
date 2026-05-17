@@ -18,9 +18,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
+  AlertTriangle,
   ArrowRight,
   ArrowUpRight,
+  BookOpen,
   Bot,
+  Briefcase,
   Check,
   Clock,
   Cpu,
@@ -139,12 +142,12 @@ function Hero() {
           </div>
           <h1 className="mt-6 text-5xl font-bold leading-[1.05] tracking-tight text-slate-900 md:text-6xl">
             One AI knowledge layer for{" "}
-            <span style={{ color: HYDRANT_RED }}>Slack, Linear &amp; GitHub.</span>
+            <span style={{ color: HYDRANT_RED }}>Slack, Linear, GitHub &amp; more.</span>
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-600">
             Hydrant is an MCP server that indexes your team&apos;s incident knowledge —
-            past Slack threads, Linear tickets, GitHub runbooks &amp; PRs — and lets any
-            AI agent answer with citations in seconds.
+            past Slack threads, Linear tickets, GitHub runbooks &amp; PRs, with more sources
+            on the way — and lets any AI agent answer with citations in seconds.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -767,11 +770,22 @@ function Architecture() {
         </p>
 
         <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_auto_1.1fr_auto_1fr] lg:items-stretch">
-          {/* Sources */}
+          {/* Sources — live + coming-soon */}
           <ArchColumn title="Sources" sub="Indexers run on cron">
             <ArchRow I={Slack} label="Slack" detail="Threads · messages" />
             <ArchRow I={Layers} label="Linear" detail="Issues · comments" />
             <ArchRow I={Github} label="GitHub" detail="PRs · runbooks · code" />
+            <div className="mt-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              <span className="h-px flex-1 bg-slate-300" />
+              Coming soon
+              <span className="h-px flex-1 bg-slate-300" />
+            </div>
+            <ArchRowSoon I={BookOpen} label="Notion" detail="Docs · runbooks" />
+            <ArchRowSoon I={AlertTriangle} label="Sentry" detail="Alerts · errors" />
+            <ArchRowSoon I={Briefcase} label="Jira" detail="Tickets · epics" />
+            <p className="mt-1 px-1 text-[11px] italic leading-snug text-slate-500">
+              Connector API is open — fork &amp; drop in whatever your team uses.
+            </p>
           </ArchColumn>
 
           <ArchArrow />
@@ -845,6 +859,32 @@ function ArchRow({
         <div className="text-sm font-semibold text-slate-900">{label}</div>
         <div className="text-[11px] text-slate-500">{detail}</div>
       </div>
+    </div>
+  );
+}
+
+// Dimmed twin of ArchRow used for sources that aren't shipped yet. Same
+// visual rhythm so the section stays balanced; the dashed border + "soon"
+// badge make the status unambiguous in a one-second skim.
+function ArchRowSoon({
+  I,
+  label,
+  detail,
+}: {
+  I: LucideIcon;
+  label: string;
+  detail: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white/50 p-3">
+      <I size={16} className="text-slate-400" />
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold text-slate-500">{label}</div>
+        <div className="text-[11px] text-slate-400">{detail}</div>
+      </div>
+      <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-slate-500">
+        soon
+      </span>
     </div>
   );
 }
