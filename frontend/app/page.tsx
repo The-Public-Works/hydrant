@@ -175,7 +175,7 @@ function Hero() {
           <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-500">
             <span className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600" /> Python · FastMCP</span>
             <span className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600" /> Postgres + pgvector</span>
-            <span className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600" /> Works with Cline · Claude Code · Claude Desktop</span>
+            <span className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600" /> Works with any MCP-compatible agent</span>
           </div>
         </div>
 
@@ -362,7 +362,7 @@ type StreamEvent = { at: number; kind: "call" | "result" | "system"; text: strin
 // are seconds-from-start; total run is ~120s.
 const LANDING_STREAM: StreamEvent[] = [
   { at: 0,   kind: "system", text: "Incident detected — #incident-auth-401s" },
-  { at: 2,   kind: "system", text: "Cline received prompt — reading runbook" },
+  { at: 2,   kind: "system", text: "Your agent received the prompt — reading runbook" },
   { at: 6,   kind: "call",   text: 'mcp.get_runbook("incident flow", k=5)' },
   { at: 8,   kind: "result", text: "5 chunks · docs/runbooks/incident-flow.md  (842 ms)" },
   { at: 10,  kind: "call",   text: "mcp.get_node(282)" },
