@@ -7,16 +7,22 @@
  *
  * Sister pages:
  *   /present  — slide deck used during the live pitch
- *   /demo     — the actual product (Hydrant chat + graph)
+ *
+ * The recorded demo lives on Google Drive (DEMO_VIDEO_URL below). The
+ * /demo route still exists in the codebase for local dev but isn't
+ * surfaced on this landing — it requires the FastAPI shim which we
+ * haven't deployed alongside the static frontend.
  */
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
   Bot,
   Check,
+  Clock,
   Cpu,
   Database,
   Flame,
@@ -26,6 +32,7 @@ import {
   MessageSquare,
   Network,
   PlayCircle,
+  RotateCcw,
   Rocket,
   Search,
   ShieldCheck,
@@ -40,6 +47,8 @@ import {
 
 const HYDRANT_RED = "#DC2626";
 const GITHUB_URL = "https://github.com/the-public-works/hydrant";
+const DEMO_VIDEO_URL =
+  "https://drive.google.com/file/d/1eCpVutv7bMUDVW3kGfi9Fr63UXKNqg6Y/view";
 
 export default function Landing() {
   return (
@@ -48,6 +57,7 @@ export default function Landing() {
       <Hero />
       <WhatItDoes />
       <WhyHydrant />
+      <SeeItRun />
       <Quickstart />
       <Tools />
       <Architecture />
@@ -81,6 +91,7 @@ function NavBar() {
         </Link>
         <nav className="hidden items-center gap-7 text-sm text-slate-600 md:flex">
           <a href="#what" className="hover:text-slate-900">What it does</a>
+          <a href="#see-it-run" className="hover:text-slate-900">See it run</a>
           <a href="#quickstart" className="hover:text-slate-900">Quickstart</a>
           <a href="#tools" className="hover:text-slate-900">Tools</a>
           <a href="#architecture" className="hover:text-slate-900">Architecture</a>
@@ -94,13 +105,15 @@ function NavBar() {
           >
             <Github size={14} /> GitHub
           </a>
-          <Link
-            href="/demo"
+          <a
+            href={DEMO_VIDEO_URL}
+            target="_blank"
+            rel="noreferrer"
             className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
             style={{ background: HYDRANT_RED }}
           >
-            Live demo <ArrowRight size={14} />
-          </Link>
+            Watch demo <PlayCircle size={14} />
+          </a>
         </div>
       </div>
     </header>
@@ -144,12 +157,14 @@ function Hero() {
             >
               <Star size={16} /> Star on GitHub
             </a>
-            <Link
-              href="/demo"
+            <a
+              href={DEMO_VIDEO_URL}
+              target="_blank"
+              rel="noreferrer"
               className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:border-slate-400 hover:bg-slate-50"
             >
-              <PlayCircle size={16} /> See it in action
-            </Link>
+              <PlayCircle size={16} /> Watch the demo
+            </a>
           </div>
 
           <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-500">
@@ -327,6 +342,225 @@ function WhyHydrant() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────── See it run (slate block, terminal mockup) ─────────── */
+
+type StreamEvent = { at: number; kind: "call" | "result" | "system"; text: string };
+
+// Same event timeline as the live presentation slide — kept in sync so the
+// landing visualization matches what a real Cline run actually emits. Numbers
+// are seconds-from-start; total run is ~120s.
+const LANDING_STREAM: StreamEvent[] = [
+  { at: 0,   kind: "system", text: "Incident detected — #incident-auth-401s" },
+  { at: 2,   kind: "system", text: "Cline received prompt — reading runbook" },
+  { at: 6,   kind: "call",   text: 'mcp.get_runbook("incident flow", k=5)' },
+  { at: 8,   kind: "result", text: "5 chunks · docs/runbooks/incident-flow.md  (842 ms)" },
+  { at: 10,  kind: "call",   text: "mcp.get_node(282)" },
+  { at: 12,  kind: "result", text: "Full incident-flow.md loaded  (210 ms)" },
+  { at: 15,  kind: "call",   text: 'mcp.diagnose_incident("Auth 401s after deploy")' },
+  { at: 24,  kind: "result", text: "6 similar incidents · 2 runbook hits · owner @chetan  (8.4 s)" },
+  { at: 27,  kind: "call",   text: "mcp.trace_issue(#3)" },
+  { at: 36,  kind: "result", text: "Issue context · 8 suspect files · top: src/config/config.js  (7.1 s)" },
+  { at: 40,  kind: "call",   text: "mcp.get_pr_diff(#2)" },
+  { at: 47,  kind: "result", text: "src/config/config.js — default(30) → default(0)  (4.2 s)" },
+  { at: 51,  kind: "call",   text: "mcp.git_blame(src/config/config.js, L30-35)" },
+  { at: 55,  kind: "result", text: "commit 38e7e901… by Henning  (310 ms)" },
+  { at: 58,  kind: "call",   text: "mcp.who_owns(src/config/config.js)" },
+  { at: 60,  kind: "result", text: "@alice-platform · CODEOWNERS rule *  (47 ms)" },
+  { at: 63,  kind: "system", text: "Synthesizing diagnosis with citations…" },
+  { at: 88,  kind: "call",   text: 'mcp.create_linear_issue("Auth 401s — JWT expiry regression")' },
+  { at: 96,  kind: "result", text: "CLI-36 opened ↗" },
+  { at: 101, kind: "call",   text: 'mcp.create_slack_channel("incident-…-auth-401s")' },
+  { at: 113, kind: "result", text: "Channel created · 2 users invited · synthesis posted ↗" },
+  { at: 118, kind: "system", text: "✓ Done — whole on-call team has context." },
+];
+
+const LANDING_DURATION = 122;   // seconds shown before the loop restarts
+const LANDING_PAUSE_AT_END = 4; // brief pause on the final state before replay
+
+function SeeItRun() {
+  // The visualization runs autonomously: timer ticks up, events appear when
+  // their `at` is hit, and after a short pause at LANDING_DURATION the whole
+  // thing loops. Restart button bumps the seed so the loop resets from 0
+  // without waiting.
+  const [seed, setSeed] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (paused) return;
+    const startedAt = Date.now();
+    const id = setInterval(() => {
+      const t = (Date.now() - startedAt) / 1000;
+      if (t >= LANDING_DURATION + LANDING_PAUSE_AT_END) {
+        setSeed((s) => s + 1);
+        setElapsed(0);
+      } else {
+        setElapsed(t);
+      }
+    }, 100);
+    return () => clearInterval(id);
+  }, [seed, paused]);
+
+  // Keep the latest event in view.
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [elapsed]);
+
+  const visible = LANDING_STREAM.filter((e) => elapsed >= e.at);
+  const displayElapsed = Math.min(elapsed, LANDING_DURATION);
+  const mm = String(Math.floor(displayElapsed / 60)).padStart(2, "0");
+  const ss = String(Math.floor(displayElapsed % 60)).padStart(2, "0");
+  const tenths = Math.floor((displayElapsed * 10) % 10);
+  const overTarget = displayElapsed >= 120;
+
+  return (
+    <section id="see-it-run" className="bg-slate-50">
+      <div className="mx-auto max-w-6xl px-6 py-20">
+        <SectionLabel color="red">See it run</SectionLabel>
+        <h2 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 md:text-5xl">
+          One prompt. <span style={{ color: HYDRANT_RED }}>~2 minutes.</span> Full incident context.
+        </h2>
+        <p className="mt-4 max-w-2xl text-base text-slate-600">
+          What happens after a developer types{" "}
+          <span className="font-mono text-[15px]">&quot;auth is broken — diagnose&quot;</span>{" "}
+          into their MCP-enabled agent. Real tool calls. Real timings from an
+          actual Cline run.
+        </p>
+
+        <div className="mt-10 grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr] lg:items-stretch">
+          {/* Terminal-style tool stream */}
+          <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-xl shadow-slate-300/40">
+            <div className="flex items-center justify-between border-b border-slate-800 px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                <span className="ml-2 font-mono text-[11px] text-slate-400">
+                  hydrant · tool stream
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-[11px] text-slate-400">
+                  {visible.length}/{LANDING_STREAM.length} events
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setElapsed(0);
+                    setSeed((s) => s + 1);
+                    setPaused(false);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-700 px-2 py-0.5 font-mono text-[10px] text-slate-300 hover:border-slate-500 hover:text-slate-100"
+                  title="Replay"
+                >
+                  <RotateCcw size={11} /> replay
+                </button>
+              </div>
+            </div>
+            <div
+              ref={scrollRef}
+              className="h-[340px] overflow-y-auto px-5 py-4 font-mono text-[12px] leading-relaxed"
+            >
+              {visible.map((e, i) => (
+                <div key={i} className="flex gap-2 py-0.5">
+                  <span className="shrink-0 text-slate-500">
+                    [{String(Math.floor(e.at)).padStart(3, " ")}s]
+                  </span>
+                  <span
+                    className={
+                      e.kind === "call"
+                        ? "text-emerald-400"
+                        : e.kind === "result"
+                        ? "pl-3 text-slate-300"
+                        : "italic text-amber-200"
+                    }
+                  >
+                    {e.text}
+                  </span>
+                </div>
+              ))}
+              {visible.length === LANDING_STREAM.length && (
+                <div className="mt-3 border-t border-slate-800 pt-3 font-mono text-[11px] italic text-slate-500">
+                  Replaying in {Math.max(0, Math.ceil(LANDING_DURATION + LANDING_PAUSE_AT_END - elapsed))}s…
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Stopwatch + video CTA */}
+          <div className="flex flex-col gap-5">
+            <div
+              className="rounded-2xl border-2 p-6"
+              style={{
+                borderColor: overTarget ? HYDRANT_RED : "#cbd5e1",
+                background: "#ffffff",
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-slate-600">
+                  <Clock size={14} />
+                  Elapsed
+                </div>
+                <div className="font-mono text-[10px] text-slate-500">
+                  {overTarget ? "over 2 min" : "target <2 min"}
+                </div>
+              </div>
+              <div className="mt-3 flex items-baseline justify-center gap-1 font-mono tabular-nums leading-none">
+                <span
+                  className="text-6xl font-bold transition-colors"
+                  style={{ color: overTarget ? HYDRANT_RED : "#0f172a" }}
+                >
+                  {mm}:{ss}
+                </span>
+                <span
+                  className="text-2xl font-bold opacity-60"
+                  style={{ color: overTarget ? HYDRANT_RED : "#0f172a" }}
+                >
+                  .{tenths}
+                </span>
+              </div>
+              <div className="mt-3 text-center text-xs text-slate-500">
+                {visible.length === LANDING_STREAM.length
+                  ? "✓ done · whole team has context"
+                  : `running… ${visible.length} of ${LANDING_STREAM.length} tool events`}
+              </div>
+            </div>
+
+            <a
+              href={DEMO_VIDEO_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="group flex flex-col gap-2 rounded-2xl border p-6 transition hover:shadow-lg"
+              style={{ borderColor: HYDRANT_RED, background: "rgba(220, 38, 38, 0.04)" }}
+            >
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-white"
+                style={{ background: HYDRANT_RED }}
+              >
+                <PlayCircle size={22} />
+              </div>
+              <div className="text-base font-bold text-slate-900">Watch the recorded demo</div>
+              <div className="text-sm text-slate-600">
+                Full ~2-minute walkthrough — incident channel opens, Cline calls Hydrant,
+                team gets a cited answer.
+              </div>
+              <div
+                className="mt-1 inline-flex items-center gap-1 text-xs font-semibold"
+                style={{ color: HYDRANT_RED }}
+              >
+                Open on Google Drive <ArrowUpRight size={12} />
+              </div>
+            </a>
+          </div>
         </div>
       </div>
     </section>
@@ -731,12 +965,14 @@ function CTASection() {
             >
               <Star size={16} /> Star the repo
             </a>
-            <Link
-              href="/demo"
+            <a
+              href={DEMO_VIDEO_URL}
+              target="_blank"
+              rel="noreferrer"
               className="inline-flex items-center gap-2 rounded-md border border-white/40 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
             >
-              <PlayCircle size={16} /> Try the live demo
-            </Link>
+              <PlayCircle size={16} /> Watch the demo
+            </a>
           </div>
         </div>
 
@@ -793,9 +1029,9 @@ function Footer() {
           <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-slate-800">
             GitHub
           </a>
-          <Link href="/demo" className="hover:text-slate-800">
+          <a href={DEMO_VIDEO_URL} target="_blank" rel="noreferrer" className="hover:text-slate-800">
             Demo
-          </Link>
+          </a>
           <Link href="/present" className="hover:text-slate-800">
             Deck
           </Link>

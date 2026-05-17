@@ -398,6 +398,6 @@ If you're not sure where to start, [open a discussion](https://github.com/the-pu
 🥇 Won the [Cline + 2Hero hackathon](https://thehydrant.dev) (Spotify *Intelligent Context Navigation for Developer Knowledge* challenge).
 
 - **Chetan Singh** — [@chetan1029](https://github.com/chetan1029)
-- **Henning Norén** — [@henning-noren](https://github.com/henning-noren)
+- **Henning Norén** — [@Henning-1](https://github.com/Henning-1)
 
 If Hydrant helps your team — **drop a ⭐ on this repo**. That's how we know to keep shipping.
