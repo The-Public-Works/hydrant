@@ -263,7 +263,7 @@ function WhatItDoes() {
     {
       I: Bot,
       title: "3 · Answer with citations",
-      desc: "Any MCP-compatible agent (Cline, Claude Code, Claude Desktop) calls Hydrant and posts a cited answer back to your team.",
+      desc: "Any MCP-compatible agent calls Hydrant and posts a cited answer back to your team.",
     },
   ];
   return (
@@ -314,7 +314,7 @@ function WhyHydrant() {
     {
       I: Cpu,
       title: "Any MCP client",
-      desc: "Wire it into Cline, Claude Code, Claude Desktop, Cursor, or any agent that speaks MCP. One server, many clients.",
+      desc: "Wire it into any MCP-compatible agent — Claude Code, Cursor, Cline, Codex, Continue, and more. One server, many clients.",
     },
   ];
   return (
@@ -358,8 +358,8 @@ function WhyHydrant() {
 type StreamEvent = { at: number; kind: "call" | "result" | "system"; text: string };
 
 // Same event timeline as the live presentation slide — kept in sync so the
-// landing visualization matches what a real Cline run actually emits. Numbers
-// are seconds-from-start; total run is ~120s.
+// landing visualization matches what a real MCP-agent run actually emits.
+// Numbers are seconds-from-start; total run is ~120s.
 const LANDING_STREAM: StreamEvent[] = [
   { at: 0,   kind: "system", text: "Incident detected — #incident-auth-401s" },
   { at: 2,   kind: "system", text: "Your agent received the prompt — reading runbook" },
@@ -437,8 +437,8 @@ function SeeItRun() {
         <p className="mt-4 max-w-2xl text-base text-slate-600">
           What happens after a developer types{" "}
           <span className="font-mono text-[15px]">&quot;auth is broken — diagnose&quot;</span>{" "}
-          into their MCP-enabled agent. Real tool calls. Real timings from an
-          actual Cline run.
+          into their MCP-enabled agent. Real tool calls. Real timings from a
+          recorded run.
         </p>
 
         <div className="mt-10 grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr] lg:items-stretch">
@@ -555,8 +555,8 @@ function SeeItRun() {
               </div>
               <div className="text-base font-bold text-slate-900">Watch the recorded demo</div>
               <div className="text-sm text-slate-600">
-                Full ~2-minute walkthrough — incident channel opens, Cline calls Hydrant,
-                team gets a cited answer.
+                Full ~2-minute walkthrough — incident channel opens, your agent
+                calls Hydrant, team gets a cited answer.
               </div>
               <div
                 className="mt-1 inline-flex items-center gap-1 text-xs font-semibold"
