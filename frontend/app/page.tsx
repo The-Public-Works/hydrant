@@ -26,12 +26,14 @@ import {
   Briefcase,
   Check,
   Clock,
+  Code2,
   Cpu,
   Database,
   Flame,
   Github,
   GitBranch,
   Layers,
+  Link2,
   MessageSquare,
   Network,
   PlayCircle,
@@ -801,11 +803,23 @@ function Architecture() {
                 <div className="text-xs uppercase tracking-widest text-emerald-700">MCP server</div>
               </div>
             </div>
-            <ul className="mt-5 space-y-2 text-sm text-slate-600">
+            <div className="mt-5 text-[10px] font-semibold uppercase tracking-widest text-emerald-700">
+              What it does
+            </div>
+            <ul className="mt-2 space-y-2 text-sm text-slate-600">
+              <ArchBullet>Cross-source synthesis with cited deep-links</ArchBullet>
+              <ArchBullet>17 MCP tools — search, traverse, write back</ArchBullet>
+              <ArchBullet>Slack &amp; Linear write tools (post the answer back)</ArchBullet>
+              <ArchBullet>Sub-second retrieval at repo-scale</ArchBullet>
+            </ul>
+            <div className="mt-5 text-[10px] font-semibold uppercase tracking-widest text-emerald-700">
+              Under the hood
+            </div>
+            <ul className="mt-2 space-y-2 text-sm text-slate-600">
               <ArchBullet>Postgres + pgvector knowledge graph</ArchBullet>
               <ArchBullet>HNSW vector search + edge traversal</ArchBullet>
-              <ArchBullet>17 MCP tools over stdio transport</ArchBullet>
               <ArchBullet>Voyage AI embeddings (512-dim)</ArchBullet>
+              <ArchBullet>FastMCP stdio transport · self-hosted</ArchBullet>
             </ul>
           </div>
 
@@ -814,8 +828,27 @@ function Architecture() {
           {/* Clients */}
           <ArchColumn title="Your agent" sub="Any MCP client">
             <ArchRow I={Bot} label="Cline" detail="VSCode agent" />
-            <ArchRow I={Terminal} label="Claude Code" detail="CLI" />
+            <ArchRow I={Terminal} label="Claude Code" detail="Anthropic CLI" />
             <ArchRow I={MessageSquare} label="Claude Desktop" detail="App" />
+            <ArchRow I={Cpu} label="Codex CLI" detail="OpenAI agent" />
+            <ArchRow I={Code2} label="Cursor" detail="AI-first IDE" />
+            <ArchRow I={Sparkles} label="Continue" detail="VSCode / JetBrains" />
+            <div className="mt-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-emerald-700">
+              <span className="h-px flex-1 bg-emerald-200" />
+              MCP standard
+              <span className="h-px flex-1 bg-emerald-200" />
+            </div>
+            <div className="flex items-center gap-3 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/60 p-3">
+              <Link2 size={16} className="text-emerald-700" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-emerald-800">
+                  …any MCP client
+                </div>
+                <div className="text-[11px] text-emerald-700/80">
+                  stdio transport · plug &amp; play
+                </div>
+              </div>
+            </div>
           </ArchColumn>
         </div>
       </div>
