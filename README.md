@@ -392,6 +392,8 @@ If you're not sure where to start, [open a discussion](https://github.com/the-pu
 
 ## 🛠️ Built by
 
+<a href="https://github.com/the-public-works"><img src="assets/the-public-works-logo.svg" alt="The Public Works" height="56" /></a>
+
 [**The Public Works**](https://github.com/the-public-works) — a small open-source studio building tools for engineers between hackathons.
 
 🥇 Won the [Cline + 2Hero hackathon](https://thehydrant.dev) (Spotify *Intelligent Context Navigation for Developer Knowledge* challenge).

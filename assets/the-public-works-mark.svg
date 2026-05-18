@@ -1,0 +1,32 @@
+<!--
+  The Public Works — primary mark (square, 1:1)
+
+  Optimised for GitHub org avatar usage:
+    - Π fills ~85% of the canvas (vs. the ~65% of the first cut) so it
+      stays legible at 40px nav-bar size.
+    - Pillars and lintel are thick (12-13 units wide on a 64-unit
+      canvas) to survive aggressive downscaling.
+    - 10-unit corner radius keeps the rounded-square framing GitHub
+      uses for orgs.
+    - Two-colour only (slate + white) so it works in monochrome
+      contexts (terminal recordings, fax, etc.).
+
+  Reads as: civic Π / portal / bridge — two pillars (the founders)
+  holding up a lintel (the public good).
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 64 64"
+  role="img"
+  aria-label="The Public Works"
+>
+  <title>The Public Works</title>
+  <!-- Background -->
+  <rect width="64" height="64" rx="10" fill="#0F172A" />
+  <!-- Lintel (top bar) -->
+  <rect x="6" y="12" width="52" height="10" rx="2" fill="#FFFFFF" />
+  <!-- Left pillar -->
+  <rect x="11" y="22" width="13" height="34" rx="2" fill="#FFFFFF" />
+  <!-- Right pillar -->
+  <rect x="40" y="22" width="13" height="34" rx="2" fill="#FFFFFF" />
+</svg>
