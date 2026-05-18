@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from collections import OrderedDict
 from typing import Sequence
 
 import httpx
@@ -26,6 +27,7 @@ MAX_BATCH_INPUTS = 128
 # measure); 20k chars ≈ 6.6k tokens even at the worst-case ~3 chars/token
 # ratio for dense code. Override via env for pathological inputs.
 MAX_INPUT_CHARS = int(os.getenv("INDEXER_EMBED_MAX_CHARS", "20000"))
+QUERY_CACHE_SIZE = 1024
 
 
 def _truncate(text: str) -> str:
@@ -47,6 +49,7 @@ class Embedder:
         self._model = model
         self._dim = dim
         self._client = httpx.AsyncClient(timeout=60.0)
+        self._query_cache: OrderedDict[str, list[float]] = OrderedDict()
 
     async def aclose(self) -> None:
         await self._client.aclose()
@@ -103,7 +106,18 @@ class Embedder:
         return await self._embed(texts)
 
     async def embed_query(self, text: str) -> list[float]:
+        # Same query string often arrives from `find_similar_incidents`,
+        # `get_runbook`, and `search_all` in the same diagnosis turn —
+        # an LRU here skips a real OpenAI round-trip (~100–500 ms each).
+        key = f"{self._model}|{self._dim}|{text}"
+        cached = self._query_cache.get(key)
+        if cached is not None:
+            self._query_cache.move_to_end(key)
+            return cached
         [vec] = await self._embed([text])
+        self._query_cache[key] = vec
+        if len(self._query_cache) > QUERY_CACHE_SIZE:
+            self._query_cache.popitem(last=False)
         return vec
 
     async def embed(self, texts: Sequence[str]) -> list[list[float]]:

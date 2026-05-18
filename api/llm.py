@@ -7,8 +7,10 @@ chat.completions tools schema.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import time
 from typing import Any, Awaitable, Callable
 
 import httpx
@@ -32,8 +34,11 @@ SYSTEM_PROMPT = (
     "conclusion from what you've gathered — explicitly state what you don't "
     "know rather than searching further. Avoid redundant queries (don't run "
     "multiple `search_context` calls with paraphrased versions of the same "
-    "question). Keep responses concise; the user can see the graph light up "
-    "as you call tools."
+    "question). When you need multiple independent lookups (e.g. searching "
+    "context plus checking owners, or posting to Slack plus opening a Linear "
+    "ticket), emit them as parallel tool calls in the same turn — the runtime "
+    "executes them concurrently. Keep responses concise; the user can see "
+    "the graph light up as you call tools."
 )
 
 
@@ -64,8 +69,13 @@ async def run_chat(
         "X-Title": "Hydrant web demo",
     }
 
+    chat_started = time.perf_counter()
+    llm_stream_ms = 0.0
+    tool_total_ms = 0.0
+
     async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
         for _ in range(MAX_TOOL_LOOPS):
+            stream_started = time.perf_counter()
             payload = {
                 "model": model,
                 "messages": messages,
@@ -119,9 +129,16 @@ async def run_chat(
                     if choice.get("finish_reason"):
                         finish_reason = choice["finish_reason"]
 
+            llm_stream_ms += (time.perf_counter() - stream_started) * 1000.0
+
             # End of stream.
             if finish_reason != "tool_calls" or not tool_calls_buf:
                 # Final assistant message with no tool calls (or empty).
+                total_ms = (time.perf_counter() - chat_started) * 1000.0
+                log.info(
+                    "chat done total_ms=%.0f llm_ms=%.0f tool_ms=%.0f",
+                    total_ms, llm_stream_ms, tool_total_ms,
+                )
                 await emit("done", {})
                 return
 
@@ -142,8 +159,12 @@ async def run_chat(
                 ],
             })
 
-            # Run each tool, emit events, and append tool results.
-            for _, slot in sorted(tool_calls_buf.items()):
+            # Run each tool concurrently, emit events as they finish, then
+            # append tool results in tool_calls order so OpenRouter can
+            # match them back to the assistant message above.
+            ordered_slots = [slot for _, slot in sorted(tool_calls_buf.items())]
+
+            async def _run_one(slot: dict[str, Any]) -> Any:
                 name = slot["name"]
                 try:
                     args = json.loads(slot["args"]) if slot["args"] else {}
@@ -151,11 +172,25 @@ async def run_chat(
                     args = {}
 
                 await emit("tool_call", {"id": slot["id"], "name": name, "args": args})
+                started = time.perf_counter()
                 result, node_ids = await invoke(name, args)
+                elapsed_ms = (time.perf_counter() - started) * 1000.0
+                log.info("tool=%s elapsed_ms=%.0f", name, elapsed_ms)
                 if node_ids:
                     await emit("nodes_visited", {"ids": node_ids})
-                await emit("tool_result", {"id": slot["id"], "name": name, "summary": _summarize(result)})
+                await emit("tool_result", {
+                    "id": slot["id"],
+                    "name": name,
+                    "summary": _summarize(result),
+                    "elapsed_ms": round(elapsed_ms),
+                })
+                return result
 
+            tools_started = time.perf_counter()
+            results = await asyncio.gather(*(_run_one(s) for s in ordered_slots))
+            tool_total_ms += (time.perf_counter() - tools_started) * 1000.0
+
+            for slot, result in zip(ordered_slots, results):
                 messages.append({
                     "role": "tool",
                     "tool_call_id": slot["id"],

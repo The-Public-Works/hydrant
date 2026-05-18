@@ -19,8 +19,8 @@ Tool families:
 
 from __future__ import annotations
 
+import asyncio
 import re
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -352,16 +352,20 @@ async def git_blame(
         raise ValueError(f"local clone for {slug} not found at {repo_dir}")
 
     le = line_end or line_start
-    out = subprocess.run(
-        ["git", "-C", str(repo_dir), "blame", "-L", f"{line_start},{le}", "--porcelain", "--", file_path],
-        capture_output=True, text=True,
+    proc = await asyncio.create_subprocess_exec(
+        "git", "-C", str(repo_dir), "blame", "-L", f"{line_start},{le}",
+        "--porcelain", "--", file_path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
-    if out.returncode != 0:
-        raise ValueError(out.stderr.strip() or "git blame failed")
+    stdout_b, stderr_b = await proc.communicate()
+    if proc.returncode != 0:
+        raise ValueError(stderr_b.decode("utf-8", errors="replace").strip() or "git blame failed")
+    stdout = stdout_b.decode("utf-8", errors="replace")
 
     # Parse porcelain header lines: SHA originalLine finalLine [groupSize]
     seen: dict[str, dict[str, Any]] = {}
-    for line in out.stdout.splitlines():
+    for line in stdout.splitlines():
         if not line or line.startswith("\t"):
             continue
         m = re.match(r"^([0-9a-f]{40})\s+(\d+)\s+(\d+)", line)
@@ -1275,8 +1279,10 @@ async def diagnose_incident(symptom: str) -> dict[str, Any]:
     The agent typically calls this tool *first*, then drills into specific
     citations using `get_node` / `get_pr_diff` / `git_blame` if needed.
     """
-    similar = await find_similar_incidents(symptom, k=6)
-    runbook = await get_runbook(symptom, k=2)
+    similar, runbook = await asyncio.gather(
+        find_similar_incidents(symptom, k=6),
+        get_runbook(symptom, k=2),
+    )
 
     # Best-effort owner lookup: pick a path hint from the top-matching
     # runbook (if any). Skipped silently if no repo is indexed or the

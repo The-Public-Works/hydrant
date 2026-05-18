@@ -106,7 +106,7 @@ demo: ## Launch the MCP server (stdio — what your AI agent talks to)
 	./bin/run-mcp.sh
 
 api: ## Launch the FastAPI shim used by the Next.js demo
-	$(PY) -m uvicorn api.main:app --reload --port 8000
+	$(PY) -m uvicorn api.app:app --reload --port 8000
 
 frontend: ## Launch the Next.js demo UI on http://localhost:3000
 	cd frontend && $(PNPM) install && $(PNPM) dev
