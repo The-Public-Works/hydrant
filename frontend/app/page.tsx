@@ -20,6 +20,16 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import {
+  forceCenter,
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+  type SimulationLinkDatum,
+  type SimulationNodeDatum,
+} from "d3-force";
 import {
   AlertTriangle,
   ArrowRight,
@@ -63,6 +73,7 @@ export default function Landing() {
       <WorksWith />
       <WhatItDoes />
       <WhyHydrant />
+      <KnowledgeGraph />
       <SeeItRun />
       <Quickstart />
       <Tools />
@@ -374,6 +385,293 @@ function WhyHydrant() {
         </div>
       </div>
     </section>
+  );
+}
+
+/* ─────────── Knowledge graph (live force-directed visualization) ─────────── */
+
+// Flourish-style: each node is a small data card with the actual content
+// inside (the PR number, the commit hash, the file path, the owner handle)
+// instead of just a colour-coded dot with a label below. Rendered via SVG
+// <foreignObject> so the HTML cards scale proportionally with the viewBox
+// — looks crisp at every viewport width.
+//
+// Colours match /demo's GraphPanel palette so jurors who click through to
+// the live graph see the same chrome.
+type GraphNode = SimulationNodeDatum & {
+  id: string;
+  fill: string;
+  icon: LucideIcon;
+  kind: string;     // small uppercase label, e.g. "PULL REQUEST"
+  title: string;    // main line, e.g. "PR #2"
+  detail: string;   // meta line, e.g. "by @henning · 2d ago"
+  w: number;        // card width (in viewBox units)
+  h: number;        // card height (in viewBox units)
+  fx?: number | null;
+  fy?: number | null;
+};
+
+type GraphEdge = SimulationLinkDatum<GraphNode> & {
+  source: string | GraphNode;
+  target: string | GraphNode;
+};
+
+const GRAPH_W = 1100;
+const GRAPH_H = 620;
+
+const INITIAL_NODES: GraphNode[] = [
+  // Seed node — pinned to centre (fx/fy) so the other nodes orbit it
+  {
+    id: "incident", fill: "#DC2626", icon: Flame,
+    kind: "INCIDENT",       title: "auth 401s in prod",     detail: "Sev-1 · paged 12 min ago",
+    w: 220, h: 80, x: GRAPH_W / 2, y: GRAPH_H / 2,
+    fx: GRAPH_W / 2, fy: GRAPH_H / 2,
+  },
+  {
+    id: "slack",    fill: "#36C5F0", icon: Slack,
+    kind: "SLACK THREAD",   title: "#oncall",                detail: "JWT regression · 3d ago",
+    w: 180, h: 70, x: 240, y: 160,
+  },
+  {
+    id: "linear",   fill: "#5E6AD2", icon: Layers,
+    kind: "LINEAR",         title: "CLI-5",                  detail: "JWT auth expiry bug",
+    w: 180, h: 70, x: 860, y: 160,
+  },
+  {
+    id: "pr",       fill: "#c084fc", icon: Github,
+    kind: "PULL REQUEST",   title: "PR #2",                  detail: "by @henning · 2d ago",
+    w: 180, h: 70, x: 920, y: 340,
+  },
+  {
+    id: "commit",   fill: "#fbbf24", icon: GitBranch,
+    kind: "COMMIT",         title: "38e7e9",                 detail: "Set JWT default to 0",
+    w: 180, h: 70, x: 820, y: 500,
+  },
+  {
+    id: "file",     fill: "#38bdf8", icon: Code2,
+    kind: "FILE",           title: "src/config/config.js",   detail: "L30–35 · default(30) → 0",
+    w: 200, h: 70, x: 550, y: 530,
+  },
+  {
+    id: "author",   fill: "#f472b6", icon: Users,
+    kind: "OWNER",          title: "@alice-platform",        detail: "CODEOWNERS rule *",
+    w: 180, h: 70, x: 270, y: 500,
+  },
+  {
+    id: "notion",   fill: "#94a3b8", icon: BookOpen,
+    kind: "NOTION",         title: "Auth incident flow",     detail: "Runbook · last edit 5d ago",
+    w: 200, h: 70, x: 180, y: 340,
+  },
+];
+
+const INITIAL_EDGES: GraphEdge[] = [
+  // radial — incident links to every primary surrounding node
+  { source: "incident", target: "slack" },
+  { source: "incident", target: "linear" },
+  { source: "incident", target: "pr" },
+  { source: "incident", target: "notion" },
+  // intra-cluster — how the GitHub side hangs together
+  { source: "pr",       target: "commit" },
+  { source: "commit",   target: "file" },
+  { source: "file",     target: "author" },
+  // cross-cluster — semantic match across sources
+  { source: "slack",    target: "linear" },
+];
+
+function KnowledgeGraph() {
+  // `nodes` is the rendered state — re-rendered on every simulation tick
+  // so the SVG reflects current positions. The simulation itself lives
+  // inside the effect and is never re-created.
+  const [nodes, setNodes] = useState<GraphNode[]>(() =>
+    INITIAL_NODES.map((n) => ({ ...n })),
+  );
+
+  useEffect(() => {
+    // Fresh copies so d3-force can mutate without touching module scope.
+    const simNodes: GraphNode[] = INITIAL_NODES.map((n) => ({ ...n }));
+    const simLinks: GraphEdge[] = INITIAL_EDGES.map((e) => ({ ...e }));
+
+    const sim = forceSimulation<GraphNode>(simNodes)
+      // Repulsion between every pair of nodes — bigger negative = more spread
+      .force("charge", forceManyBody<GraphNode>().strength(-1400))
+      // Springs along each edge
+      .force(
+        "link",
+        forceLink<GraphNode, GraphEdge>(simLinks)
+          .id((d) => d.id)
+          .distance(230)
+          .strength(0.55),
+      )
+      // Soft gravity toward the canvas centre
+      .force("center", forceCenter<GraphNode>(GRAPH_W / 2, GRAPH_H / 2))
+      // Collision radius scaled to each card's bounding box so the
+      // big incident card doesn't get overlapped by smaller ones
+      .force(
+        "collide",
+        forceCollide<GraphNode>((d) => Math.max(d.w, d.h) * 0.6 + 8),
+      )
+      // alphaTarget > 0 keeps the simulation warm forever — gentle drift
+      // rather than a one-shot settle. This is the Neo4j-browser feel.
+      .alphaTarget(0.04)
+      .alphaDecay(0.012);
+
+    sim.on("tick", () => {
+      // Spread into a new array so React sees a new reference each tick.
+      setNodes(simNodes.map((n) => ({ ...n })));
+    });
+
+    return () => {
+      sim.stop();
+    };
+  }, []);
+
+  // Edges look up node refs by id from the current `nodes` state so we
+  // always render with the latest positions.
+  const nodeById = (id: string) => nodes.find((n) => n.id === id);
+
+  return (
+    <section className="border-b border-slate-200">
+      <div className="mx-auto max-w-6xl px-6 py-28">
+        <SectionLabel>The knowledge graph</SectionLabel>
+        <h2 className="mt-3 max-w-3xl text-4xl font-bold tracking-tight text-slate-900 md:text-5xl">
+          A live look at how the<br />nodes connect.
+        </h2>
+        <p className="mt-4 max-w-2xl text-base text-slate-600">
+          Hydrant stores every Slack thread, Linear ticket, GitHub artefact and
+          Notion page as a typed node. Their relationships — references, blame,
+          ownership, semantic similarity — are first-class edges. Below: one
+          real incident, drawn from the same data the agent traverses.
+        </p>
+
+        <div className="shadow-card-deep mt-14 overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
+          <div className="flex items-center justify-between border-b border-slate-800 px-4 py-2.5">
+            <span className="font-mono text-[11px] text-slate-400">
+              graph · auth-401s incident
+            </span>
+            <span className="font-mono text-[11px] text-slate-500">
+              {INITIAL_NODES.length} nodes · {INITIAL_EDGES.length} edges · live
+            </span>
+          </div>
+
+          <div className="bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[length:22px_22px]">
+            <svg
+              viewBox={`0 0 ${GRAPH_W} ${GRAPH_H}`}
+              role="img"
+              aria-label="Live knowledge graph — auth 401s incident connected to Slack, Linear, GitHub and Notion sources"
+              className="h-auto w-full"
+            >
+              {/* edges drawn first so they sit under the nodes */}
+              {INITIAL_EDGES.map((e, i) => {
+                const a = nodeById(
+                  typeof e.source === "string" ? e.source : e.source.id,
+                );
+                const b = nodeById(
+                  typeof e.target === "string" ? e.target : e.target.id,
+                );
+                if (
+                  !a || !b ||
+                  a.x == null || a.y == null ||
+                  b.x == null || b.y == null
+                ) return null;
+                return (
+                  <line
+                    key={i}
+                    x1={a.x}
+                    y1={a.y}
+                    x2={b.x}
+                    y2={b.y}
+                    stroke="rgba(255,255,255,0.18)"
+                    strokeWidth={1.25}
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+
+              {/* node cards — HTML inside <foreignObject> scales with the
+                  viewBox so the cards look right at any width */}
+              {nodes.map((n) => {
+                if (n.x == null || n.y == null) return null;
+                const Icon = n.icon;
+                const isSeed = n.id === "incident";
+                return (
+                  <foreignObject
+                    key={n.id}
+                    x={n.x - n.w / 2}
+                    y={n.y - n.h / 2}
+                    width={n.w}
+                    height={n.h}
+                  >
+                    <div
+                      className="flex h-full w-full overflow-hidden rounded-lg border bg-slate-900/90 backdrop-blur"
+                      style={{
+                        borderColor: isSeed
+                          ? n.fill
+                          : "rgba(255,255,255,0.08)",
+                        boxShadow: isSeed
+                          ? `0 0 0 1px ${n.fill}, 0 8px 28px -8px ${n.fill}`
+                          : "0 4px 12px -4px rgba(0,0,0,0.5)",
+                      }}
+                    >
+                      {/* left colour rail */}
+                      <div
+                        className="w-1 shrink-0"
+                        style={{ background: n.fill }}
+                      />
+                      <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 px-3 py-2">
+                        <div
+                          className="flex items-center gap-1.5 font-mono text-[9px] font-semibold uppercase tracking-widest"
+                          style={{ color: n.fill }}
+                        >
+                          <Icon size={11} strokeWidth={2} />
+                          <span className="truncate">{n.kind}</span>
+                        </div>
+                        <div
+                          className={`truncate font-semibold ${
+                            isSeed ? "text-[16px]" : "text-[13px]"
+                          } text-white`}
+                        >
+                          {n.title}
+                        </div>
+                        <div className="truncate text-[10.5px] text-slate-400">
+                          {n.detail}
+                        </div>
+                      </div>
+                    </div>
+                  </foreignObject>
+                );
+              })}
+            </svg>
+          </div>
+
+          {/* legend strip */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-800 px-4 py-3 text-[11px] text-slate-400">
+            <GraphLegendDot color="#DC2626" label="incident" />
+            <GraphLegendDot color="#36C5F0" label="Slack" />
+            <GraphLegendDot color="#5E6AD2" label="Linear" />
+            <GraphLegendDot color="#c084fc" label="PR" />
+            <GraphLegendDot color="#fbbf24" label="commit" />
+            <GraphLegendDot color="#38bdf8" label="file" />
+            <GraphLegendDot color="#f472b6" label="owner" />
+            <GraphLegendDot color="#94a3b8" label="Notion" />
+            <span className="ml-auto italic text-slate-500">
+              pgvector kNN + graph traversal in one query
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function GraphLegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className="inline-block h-2 w-2 rounded-full"
+        style={{ background: color }}
+      />
+      {label}
+    </span>
   );
 }
 
