@@ -132,14 +132,13 @@ function Hero() {
             Open source · MIT licensed
           </div>
           <h1 className="mt-6 text-4xl font-bold leading-[1.05] tracking-tight text-slate-900 sm:text-5xl md:text-6xl lg:text-[72px]">
-            Incident knowledge, on demand.
+            Incident knowledge,<br />on demand.
           </h1>
         </div>
 
-        {/* Bottom: two blocks — details + Slack mockup */}
-        <div className="mt-14 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr] lg:items-stretch">
-          {/* Details block */}
-          <div className="shadow-card-soft flex flex-col rounded-xl border border-slate-200 bg-white p-8">
+        {/* Bottom: details on the left (plain text, no card) + Slack mockup */}
+        <div className="mt-12 grid grid-cols-1 gap-12 lg:grid-cols-[1fr_1fr] lg:items-center">
+          <div>
             <p className="text-lg leading-relaxed text-slate-600">
               Hydrant is an MCP server that indexes your team&apos;s Slack
               threads, Linear tickets, GitHub runbooks and Notion docs into one
@@ -167,7 +166,7 @@ function Hero() {
               </a>
             </div>
 
-            <div className="mt-auto flex flex-wrap items-center gap-x-6 gap-y-2 pt-8 text-xs text-slate-500">
+            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-500">
               <span className="flex items-center gap-1.5"><Check size={13} className="text-slate-400" /> Self-hosted</span>
               <span className="flex items-center gap-1.5"><Check size={13} className="text-slate-400" /> Postgres + pgvector</span>
               <span className="flex items-center gap-1.5"><Check size={13} className="text-slate-400" /> Works with any MCP-compatible agent</span>
