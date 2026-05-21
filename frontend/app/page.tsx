@@ -416,66 +416,103 @@ type GraphEdge = SimulationLinkDatum<GraphNode> & {
   target: string | GraphNode;
 };
 
-const GRAPH_W = 1100;
-const GRAPH_H = 620;
+const GRAPH_W = 1600;
+const GRAPH_H = 940;
+
+// 24-node graph centred on a single incident. Mix of seven Slack threads,
+// four Linear tickets, three PRs, four commits, two files, two owners,
+// two Notion docs — feels populated enough to read as "we have a real
+// knowledge graph here" rather than "we drew four boxes for the demo".
+//
+// Initial coordinates roughly cluster each source type so the simulation
+// converges quickly; the seed (incident) is pinned to the canvas centre
+// via fx/fy so the rest orbit it.
+const C_X = GRAPH_W / 2;
+const C_Y = GRAPH_H / 2;
+const REG_W = 168;
+const REG_H = 62;
 
 const INITIAL_NODES: GraphNode[] = [
-  // Seed node — pinned to centre (fx/fy) so the other nodes orbit it
-  {
-    id: "incident", fill: "#DC2626", icon: Flame,
-    kind: "INCIDENT",       title: "auth 401s in prod",     detail: "Sev-1 · paged 12 min ago",
-    w: 220, h: 80, x: GRAPH_W / 2, y: GRAPH_H / 2,
-    fx: GRAPH_W / 2, fy: GRAPH_H / 2,
-  },
-  {
-    id: "slack",    fill: "#36C5F0", icon: Slack,
-    kind: "SLACK THREAD",   title: "#oncall",                detail: "JWT regression · 3d ago",
-    w: 180, h: 70, x: 240, y: 160,
-  },
-  {
-    id: "linear",   fill: "#5E6AD2", icon: Layers,
-    kind: "LINEAR",         title: "CLI-5",                  detail: "JWT auth expiry bug",
-    w: 180, h: 70, x: 860, y: 160,
-  },
-  {
-    id: "pr",       fill: "#c084fc", icon: Github,
-    kind: "PULL REQUEST",   title: "PR #2",                  detail: "by @henning · 2d ago",
-    w: 180, h: 70, x: 920, y: 340,
-  },
-  {
-    id: "commit",   fill: "#fbbf24", icon: GitBranch,
-    kind: "COMMIT",         title: "38e7e9",                 detail: "Set JWT default to 0",
-    w: 180, h: 70, x: 820, y: 500,
-  },
-  {
-    id: "file",     fill: "#38bdf8", icon: Code2,
-    kind: "FILE",           title: "src/config/config.js",   detail: "L30–35 · default(30) → 0",
-    w: 200, h: 70, x: 550, y: 530,
-  },
-  {
-    id: "author",   fill: "#f472b6", icon: Users,
-    kind: "OWNER",          title: "@alice-platform",        detail: "CODEOWNERS rule *",
-    w: 180, h: 70, x: 270, y: 500,
-  },
-  {
-    id: "notion",   fill: "#94a3b8", icon: BookOpen,
-    kind: "NOTION",         title: "Auth incident flow",     detail: "Runbook · last edit 5d ago",
-    w: 200, h: 70, x: 180, y: 340,
-  },
+  // ─── seed ────────────────────────────────────────────────────────
+  { id: "incident",  fill: "#DC2626", icon: Flame,     kind: "INCIDENT · SEV-1", title: "auth 401s in prod",      detail: "paged 12 min ago · #incident-auth-401s", w: 240, h: 84, x: C_X, y: C_Y, fx: C_X, fy: C_Y },
+
+  // ─── Slack threads (7) ───────────────────────────────────────────
+  { id: "slack-1",   fill: "#36C5F0", icon: Slack,     kind: "SLACK",            title: "#oncall",                detail: "JWT regression · 3d ago",                  w: REG_W, h: REG_H, x: 420, y: 150 },
+  { id: "slack-2",   fill: "#36C5F0", icon: Slack,     kind: "SLACK",            title: "#payments",              detail: "401s spiking · 6h ago",                    w: REG_W, h: REG_H, x: 600, y: 100 },
+  { id: "slack-3",   fill: "#36C5F0", icon: Slack,     kind: "SLACK",            title: "#incident-auth-fix",     detail: "post-mortem draft · 2w ago",               w: REG_W, h: REG_H, x: 260, y: 230 },
+  { id: "slack-4",   fill: "#36C5F0", icon: Slack,     kind: "SLACK",            title: "#sre-alerts",            detail: "token expiry · 1d ago",                    w: REG_W, h: REG_H, x: 780, y: 130 },
+  { id: "slack-5",   fill: "#36C5F0", icon: Slack,     kind: "SLACK",            title: "#eng-platform",          detail: "escalation thread · 1w ago",               w: REG_W, h: REG_H, x: 140, y: 380 },
+  { id: "slack-6",   fill: "#36C5F0", icon: Slack,     kind: "SLACK",            title: "#engineering",           detail: "code review · 5d ago",                     w: REG_W, h: REG_H, x: 920, y: 260 },
+  { id: "slack-7",   fill: "#36C5F0", icon: Slack,     kind: "SLACK",            title: "#oncall-handoff",        detail: "auth degradation · 12h ago",               w: REG_W, h: REG_H, x: 580, y: 50  },
+
+  // ─── Linear tickets (4) ──────────────────────────────────────────
+  { id: "linear-1",  fill: "#5E6AD2", icon: Layers,    kind: "LINEAR",           title: "CLI-5",                  detail: "JWT auth expiry bug",                      w: REG_W, h: REG_H, x: 1100, y: 220 },
+  { id: "linear-2",  fill: "#5E6AD2", icon: Layers,    kind: "LINEAR",           title: "CLI-12",                 detail: "Add JWT refresh logic",                    w: REG_W, h: REG_H, x: 1240, y: 320 },
+  { id: "linear-3",  fill: "#5E6AD2", icon: Layers,    kind: "LINEAR · OPEN",    title: "CLI-21",                 detail: "tracking: auth 401s",                      w: REG_W, h: REG_H, x: 1080, y: 380 },
+  { id: "linear-4",  fill: "#5E6AD2", icon: Layers,    kind: "LINEAR",           title: "CLI-7",                  detail: "audit auth flows · backlog",               w: REG_W, h: REG_H, x: 1280, y: 180 },
+
+  // ─── GitHub PRs (3) ──────────────────────────────────────────────
+  { id: "pr-1",      fill: "#c084fc", icon: Github,    kind: "PULL REQUEST",     title: "PR #2",                  detail: "auth config defaults · @henning",          w: REG_W, h: REG_H, x: 1180, y: 540 },
+  { id: "pr-2",      fill: "#c084fc", icon: Github,    kind: "PULL REQUEST",     title: "PR #5",                  detail: "refresh token rotation · @sara",           w: REG_W, h: REG_H, x: 1300, y: 660 },
+  { id: "pr-3",      fill: "#c084fc", icon: Github,    kind: "PULL REQUEST",     title: "PR #8",                  detail: "JWT validation patch · @mike",             w: REG_W, h: REG_H, x: 1080, y: 700 },
+
+  // ─── Commits (4) ─────────────────────────────────────────────────
+  { id: "commit-1",  fill: "#fbbf24", icon: GitBranch, kind: "COMMIT",           title: "38e7e9",                 detail: "set JWT default to 0",                     w: REG_W, h: REG_H, x: 940, y: 660 },
+  { id: "commit-2",  fill: "#fbbf24", icon: GitBranch, kind: "COMMIT",           title: "a2c4f1",                 detail: "add JWT expiry env var",                   w: REG_W, h: REG_H, x: 1060, y: 750 },
+  { id: "commit-3",  fill: "#fbbf24", icon: GitBranch, kind: "COMMIT",           title: "b8d3e2",                 detail: "update CORS config",                       w: REG_W, h: REG_H, x: 800, y: 740 },
+  { id: "commit-4",  fill: "#fbbf24", icon: GitBranch, kind: "COMMIT",           title: "f1a9b3",                 detail: "bump auth-lib → v3",                       w: REG_W, h: REG_H, x: 1200, y: 760 },
+
+  // ─── Files (2) ───────────────────────────────────────────────────
+  { id: "file-1",    fill: "#38bdf8", icon: Code2,     kind: "FILE",             title: "src/config/config.js",   detail: "L30–35 · default(30) → 0",                 w: 200,   h: REG_H, x: 660, y: 680 },
+  { id: "file-2",    fill: "#38bdf8", icon: Code2,     kind: "FILE",             title: "src/auth/jwt.ts",        detail: "L88–112 · expiry check",                   w: 200,   h: REG_H, x: 540, y: 760 },
+
+  // ─── Owners (2) ──────────────────────────────────────────────────
+  { id: "owner-1",   fill: "#f472b6", icon: Users,     kind: "OWNER",            title: "@alice-platform",        detail: "CODEOWNERS rule *",                        w: REG_W, h: REG_H, x: 340, y: 720 },
+  { id: "owner-2",   fill: "#f472b6", icon: Users,     kind: "OWNER",            title: "@bob-security",          detail: "CODEOWNERS auth/",                         w: REG_W, h: REG_H, x: 200, y: 600 },
+
+  // ─── Notion docs (2) ─────────────────────────────────────────────
+  { id: "notion-1",  fill: "#94a3b8", icon: BookOpen,  kind: "NOTION",           title: "Auth incident flow",     detail: "runbook · edited 5d ago",                  w: 200,   h: REG_H, x: 140, y: 470 },
+  { id: "notion-2",  fill: "#94a3b8", icon: BookOpen,  kind: "NOTION",           title: "JWT config reference",   detail: "engineering docs",                         w: 200,   h: REG_H, x: 240, y: 530 },
 ];
 
 const INITIAL_EDGES: GraphEdge[] = [
-  // radial — incident links to every primary surrounding node
-  { source: "incident", target: "slack" },
-  { source: "incident", target: "linear" },
-  { source: "incident", target: "pr" },
-  { source: "incident", target: "notion" },
-  // intra-cluster — how the GitHub side hangs together
-  { source: "pr",       target: "commit" },
-  { source: "commit",   target: "file" },
-  { source: "file",     target: "author" },
-  // cross-cluster — semantic match across sources
-  { source: "slack",    target: "linear" },
+  // ─── radial — incident → top-level matches in each source ────────
+  { source: "incident",  target: "slack-1" },
+  { source: "incident",  target: "slack-2" },
+  { source: "incident",  target: "linear-3" },
+  { source: "incident",  target: "pr-1" },
+  { source: "incident",  target: "notion-1" },
+
+  // ─── GitHub chain — PR → commit → file → owner ────────────────────
+  { source: "pr-1",      target: "commit-1" },
+  { source: "pr-1",      target: "commit-2" },
+  { source: "pr-2",      target: "commit-3" },
+  { source: "pr-3",      target: "commit-4" },
+  { source: "commit-1",  target: "file-1" },
+  { source: "commit-2",  target: "file-1" },
+  { source: "commit-3",  target: "file-2" },
+  { source: "commit-4",  target: "file-2" },
+  { source: "file-1",    target: "owner-1" },
+  { source: "file-2",    target: "owner-2" },
+
+  // ─── Slack ↔ Linear cross-referencing ─────────────────────────────
+  { source: "slack-1",   target: "linear-1" },
+  { source: "slack-3",   target: "linear-2" },
+  { source: "slack-4",   target: "linear-4" },
+  { source: "slack-6",   target: "pr-3" },
+
+  // ─── intra-Slack — handoff / quoted thread chains ────────────────
+  { source: "slack-1",   target: "slack-3" },
+  { source: "slack-7",   target: "slack-5" },
+  { source: "slack-2",   target: "slack-7" },
+
+  // ─── Linear internal — blocks / tracks / refs ─────────────────────
+  { source: "linear-1",  target: "linear-2" },
+  { source: "linear-3",  target: "pr-1" },
+  { source: "linear-1",  target: "notion-2" },
+
+  // ─── Notion cross-link ───────────────────────────────────────────
+  { source: "notion-1",  target: "notion-2" },
 ];
 
 function KnowledgeGraph() {
@@ -492,30 +529,50 @@ function KnowledgeGraph() {
     const simLinks: GraphEdge[] = INITIAL_EDGES.map((e) => ({ ...e }));
 
     const sim = forceSimulation<GraphNode>(simNodes)
-      // Repulsion between every pair of nodes — bigger negative = more spread
-      .force("charge", forceManyBody<GraphNode>().strength(-1400))
+      // Repulsion between every pair of nodes — tuned softer than the
+      // 8-node version because 24 bodies × strong charge sends them
+      // flying off to the corners.
+      .force("charge", forceManyBody<GraphNode>().strength(-700))
       // Springs along each edge
       .force(
         "link",
         forceLink<GraphNode, GraphEdge>(simLinks)
           .id((d) => d.id)
-          .distance(230)
-          .strength(0.55),
+          .distance(180)
+          .strength(0.5),
       )
       // Soft gravity toward the canvas centre
       .force("center", forceCenter<GraphNode>(GRAPH_W / 2, GRAPH_H / 2))
-      // Collision radius scaled to each card's bounding box so the
-      // big incident card doesn't get overlapped by smaller ones
+      // Collision radius scaled to each card's bounding box so cards
+      // don't overlap. Slightly tighter padding (×0.55 + 6) than the
+      // 8-node version to let the denser graph pack closer.
       .force(
         "collide",
-        forceCollide<GraphNode>((d) => Math.max(d.w, d.h) * 0.6 + 8),
+        forceCollide<GraphNode>((d) => Math.max(d.w, d.h) * 0.55 + 6),
       )
       // alphaTarget > 0 keeps the simulation warm forever — gentle drift
       // rather than a one-shot settle. This is the Neo4j-browser feel.
-      .alphaTarget(0.04)
+      .alphaTarget(0.035)
       .alphaDecay(0.012);
 
+    // Hard-clamp each node so its full card stays inside the viewBox.
+    // Without this, the simulation's drift sometimes pushes cards past
+    // the dark panel's edge and they get clipped — invisible to the
+    // user even though the simulation is technically still tracking them.
+    const margin = 8;
+    const clampToBounds = (n: GraphNode) => {
+      const halfW = n.w / 2;
+      const halfH = n.h / 2;
+      if (n.x != null) {
+        n.x = Math.max(halfW + margin, Math.min(GRAPH_W - halfW - margin, n.x));
+      }
+      if (n.y != null) {
+        n.y = Math.max(halfH + margin, Math.min(GRAPH_H - halfH - margin, n.y));
+      }
+    };
+
     sim.on("tick", () => {
+      simNodes.forEach(clampToBounds);
       // Spread into a new array so React sees a new reference each tick.
       setNodes(simNodes.map((n) => ({ ...n })));
     });
