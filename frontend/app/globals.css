@@ -122,3 +122,65 @@ html, body {
 .citation-glow {
   animation: citation-glow 2.8s ease-in-out infinite;
 }
+
+/* ─── Landing — moving border + soft shadows ─────────────────────────
+   `.moving-border`
+     A subtle red beam that rotates around the perimeter of a card,
+     drawn as a 1.5px border using a conic-gradient masked to the
+     border ring. Uses CSS @property so the angle is animatable.
+     Apply to white cards only (the beam is the brand red).
+
+   `.shadow-card-soft` / `.shadow-card-deep`
+     Pango-style layered drop shadows for blocks that should feel lifted
+     off the page. Layered offsets give a softer, more diffused look than
+     a single big-blur shadow.
+   ────────────────────────────────────────────────────────────────── */
+@property --beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes beam-spin {
+  to { --beam-angle: 360deg; }
+}
+
+.moving-border {
+  position: relative;
+}
+.moving-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--beam-angle),
+    transparent 0deg,
+    transparent 270deg,
+    rgba(220, 38, 38, 0.85) 320deg,
+    rgba(220, 38, 38, 1)    340deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  animation: beam-spin 4s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.shadow-card-soft {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 4px 12px -4px rgba(15, 23, 42, 0.08),
+    0 16px 48px -16px rgba(15, 23, 42, 0.12);
+}
+.shadow-card-deep {
+  box-shadow:
+    0 2px 4px rgba(15, 23, 42, 0.05),
+    0 12px 32px -8px rgba(15, 23, 42, 0.12),
+    0 24px 64px -24px rgba(15, 23, 42, 0.18);
+}

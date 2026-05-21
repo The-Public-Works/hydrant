@@ -176,7 +176,7 @@ function Hero() {
 function SlackMockup() {
   return (
     <div className="relative">
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)]">
+      <div className="moving-border shadow-card-deep overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3 text-[11px] text-slate-500">
           <span className="flex items-center gap-1.5 font-semibold text-slate-700">
             <Slack size={14} className="text-[#36C5F0]" />
@@ -420,7 +420,7 @@ function SeeItRun() {
 
         <div className="mt-16 grid grid-cols-1 gap-6 lg:grid-cols-[1.7fr_1fr] lg:items-stretch">
           {/* Terminal-style tool stream — all events visible at once */}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-950">
+          <div className="moving-border shadow-card-deep overflow-hidden rounded-xl border border-slate-200 bg-slate-950">
             <div className="flex items-center justify-between border-b border-slate-800 px-4 py-2.5">
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-red-500/80" />
@@ -721,7 +721,7 @@ function Architecture() {
           <ArchArrow />
 
           {/* Brain */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <div className="moving-border shadow-card-soft rounded-xl border border-slate-200 bg-white p-6">
             <div className="flex items-center gap-3">
               <div
                 className="flex h-10 w-10 items-center justify-center rounded-lg text-white"
