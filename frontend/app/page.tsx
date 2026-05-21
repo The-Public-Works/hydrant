@@ -125,49 +125,57 @@ function NavBar() {
 function Hero() {
   return (
     <section className="border-b border-slate-200">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-16 px-6 py-24 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:py-32">
-        <div>
+      <div className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
+        {/* Top: pill + full-width headline on one line */}
+        <div className="max-w-5xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-slate-600">
             Open source · MIT licensed
           </div>
-          <h1 className="mt-6 text-5xl font-bold leading-[1.05] tracking-tight text-slate-900 md:text-6xl lg:text-[68px]">
-            Incident knowledge,<br />on demand.
+          <h1 className="mt-6 text-4xl font-bold leading-[1.05] tracking-tight text-slate-900 sm:text-5xl md:text-6xl lg:text-[72px]">
+            Incident knowledge, on demand.
           </h1>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-600">
-            Hydrant is an MCP server that indexes your team&apos;s Slack threads,
-            Linear tickets, GitHub runbooks and Notion docs into one searchable
-            knowledge graph — so any AI agent can answer incident questions
-            with citations in seconds.
-          </p>
-
-          <div className="mt-10 flex flex-wrap items-center gap-3">
-            <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-md px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-              style={{ background: HYDRANT_RED }}
-            >
-              <Star size={16} /> Star on GitHub
-            </a>
-            <a
-              href={DEMO_VIDEO_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50"
-            >
-              <PlayCircle size={16} /> Watch 2-minute demo
-            </a>
-          </div>
-
-          <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-500">
-            <span className="flex items-center gap-1.5"><Check size={13} className="text-slate-400" /> Self-hosted</span>
-            <span className="flex items-center gap-1.5"><Check size={13} className="text-slate-400" /> Postgres + pgvector</span>
-            <span className="flex items-center gap-1.5"><Check size={13} className="text-slate-400" /> Works with any MCP-compatible agent</span>
-          </div>
         </div>
 
-        <SlackMockup />
+        {/* Bottom: two blocks — details + Slack mockup */}
+        <div className="mt-14 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr] lg:items-stretch">
+          {/* Details block */}
+          <div className="shadow-card-soft flex flex-col rounded-xl border border-slate-200 bg-white p-8">
+            <p className="text-lg leading-relaxed text-slate-600">
+              Hydrant is an MCP server that indexes your team&apos;s Slack
+              threads, Linear tickets, GitHub runbooks and Notion docs into one
+              searchable knowledge graph — so any AI agent can answer incident
+              questions with citations in seconds.
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <a
+                href={GITHUB_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-md px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                style={{ background: HYDRANT_RED }}
+              >
+                <Star size={16} /> Star on GitHub
+              </a>
+              <a
+                href={DEMO_VIDEO_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+              >
+                <PlayCircle size={16} /> Watch 2-minute demo
+              </a>
+            </div>
+
+            <div className="mt-auto flex flex-wrap items-center gap-x-6 gap-y-2 pt-8 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5"><Check size={13} className="text-slate-400" /> Self-hosted</span>
+              <span className="flex items-center gap-1.5"><Check size={13} className="text-slate-400" /> Postgres + pgvector</span>
+              <span className="flex items-center gap-1.5"><Check size={13} className="text-slate-400" /> Works with any MCP-compatible agent</span>
+            </div>
+          </div>
+
+          <SlackMockup />
+        </div>
       </div>
     </section>
   );
@@ -458,7 +466,7 @@ function SeeItRun() {
 
           {/* Stopwatch (frozen) + video CTA */}
           <div className="flex flex-col gap-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-6">
+            <div className="shadow-card-soft rounded-xl border border-slate-200 bg-white p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
                   <Clock size={14} />
@@ -479,7 +487,7 @@ function SeeItRun() {
               href={DEMO_VIDEO_URL}
               target="_blank"
               rel="noreferrer"
-              className="group flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-6 transition hover:border-slate-300 hover:shadow-md"
+              className="group shadow-card-soft flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-6 transition hover:border-slate-300 hover:shadow-card-deep"
             >
               <div
                 className="flex h-10 w-10 items-center justify-center rounded-lg text-white"
@@ -521,7 +529,7 @@ function Quickstart() {
 
         <div className="mt-14 grid grid-cols-1 gap-8 lg:grid-cols-[1.1fr_1fr] lg:items-start">
           {/* Terminal */}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-950">
+          <div className="shadow-card-deep overflow-hidden rounded-xl border border-slate-200 bg-slate-950">
             <div className="flex items-center gap-2 border-b border-slate-800 px-4 py-2.5">
               <span className="h-2.5 w-2.5 rounded-full bg-red-500/80" />
               <span className="h-2.5 w-2.5 rounded-full bg-amber-400/80" />
@@ -548,7 +556,7 @@ make demo`}
           </div>
 
           {/* Wire-in list */}
-          <div className="rounded-xl border border-slate-200 bg-white p-7">
+          <div className="shadow-card-soft rounded-xl border border-slate-200 bg-white p-7">
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
               <Terminal size={14} /> Wire it into your agent
             </div>
