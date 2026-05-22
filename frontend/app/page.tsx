@@ -50,6 +50,8 @@ import {
   GitBranch,
   Layers,
   Link2,
+  Linkedin,
+  Mail,
   Maximize2,
   MessageSquare,
   Minus,
@@ -87,6 +89,7 @@ export default function Landing() {
       <Tools />
       <Architecture />
       <UseCases />
+      <Waitlist />
       <CTASection />
       <Footer />
     </div>
@@ -2679,6 +2682,138 @@ function UseCases() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────── Waitlist / "get in touch" ───────────────────────────────
+   Lead-capture sibling to the OSS CTA. Two parallel affordances:
+     1. Primary email button (mailto:) — opens the visitor's email
+        client with the subject pre-filled. Zero infrastructure, works
+        for everyone. Trivial to swap for a Tally / Loops / Formspree
+        form later when a real waitlist tool is wired up.
+     2. Two LinkedIn DM links — for visitors who prefer to message
+        a human directly rather than write an email. Update WAITLIST_*
+        URLs below with the real LinkedIn profile slugs.
+   ──────────────────────────────────────────────────────────────── */
+// Both founders receive the inbound — mailto: accepts a comma-separated
+// list of recipients so the email client populates To: with both
+// addresses and either of us can reply.
+const WAITLIST_EMAIL_CHETAN = "chetanbadgujar92@gmail.com";
+const WAITLIST_EMAIL_HENNING = "henning.noren@hotmail.com";
+const WAITLIST_MAILTO =
+  `mailto:${WAITLIST_EMAIL_CHETAN},${WAITLIST_EMAIL_HENNING}` +
+  "?subject=Hydrant%20%E2%80%94%20early%20access%20interest" +
+  "&body=Hi%20Chetan%20%2B%20Henning%2C%0A%0AI%27d%20like%20to%20learn%20more%20about%20deploying%20Hydrant%20" +
+  "at%20our%20team.%20Quick%20context%3A%0A%0A-%20Company%2Frole%3A%20%0A-%20Team%20size%3A%20%0A-%20What%27" +
+  "s%20broken%20about%20your%20incident%20response%20today%3A%20%0A%0AThanks!";
+const WAITLIST_LINKEDIN_CHETAN = "https://www.linkedin.com/in/chetan1029/";
+// Henning's slug contains a URL-encoded é (%C3%A9 for "Norén"); leave as-is.
+const WAITLIST_LINKEDIN_HENNING =
+  "https://www.linkedin.com/in/henning-nor%C3%A9n-a7609121b/";
+
+function Waitlist() {
+  return (
+    <section className="border-b border-slate-200">
+      <div className="mx-auto max-w-6xl px-6 py-28">
+        <SectionLabel>Get in touch</SectionLabel>
+        <div className="mt-3 grid grid-cols-1 gap-12 lg:grid-cols-[1.1fr_1fr] lg:items-end">
+          <div>
+            <h2 className="text-4xl font-bold tracking-tight text-slate-900 md:text-5xl">
+              Want help deploying<br />Hydrant at your team?
+            </h2>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-600">
+              We&apos;re picking design partners for{" "}
+              <span className="font-semibold text-slate-900">Hydrant Cloud</span>{" "}
+              — hosted indexers, OAuth source connections, team auth, audit
+              logs. Self-hosting Hydrant stays free forever; the hosted
+              version is for teams that don&apos;t want to run their own
+              Postgres.
+            </p>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-500">
+              Drop us a note — we read every email, and we&apos;d rather
+              talk to ten teams in detail than send a hundred drip emails.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <a
+              href={WAITLIST_MAILTO}
+              className="inline-flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-5 py-4 transition hover:border-slate-300 hover:shadow-card-soft"
+            >
+              <span className="flex items-center gap-3">
+                <span
+                  className="flex h-10 w-10 items-center justify-center rounded-lg text-white"
+                  style={{ background: HYDRANT_RED }}
+                >
+                  <Mail size={18} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                    Email both of us
+                  </span>
+                  <span className="block truncate text-sm font-semibold text-slate-900">
+                    chetan + henning
+                  </span>
+                  <span className="block truncate text-[10.5px] text-slate-500">
+                    {WAITLIST_EMAIL_CHETAN} · {WAITLIST_EMAIL_HENNING}
+                  </span>
+                </span>
+              </span>
+              <ArrowUpRight size={16} className="shrink-0 text-slate-400" />
+            </a>
+
+            <a
+              href={WAITLIST_LINKEDIN_CHETAN}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3 transition hover:border-slate-300 hover:shadow-card-soft"
+            >
+              <span className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0A66C2] text-white">
+                  <Linkedin size={16} />
+                </span>
+                <span>
+                  <span className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                    DM directly
+                  </span>
+                  <span className="block text-sm font-semibold text-slate-900">
+                    Chetan on LinkedIn
+                  </span>
+                </span>
+              </span>
+              <ArrowUpRight size={14} className="shrink-0 text-slate-400" />
+            </a>
+
+            <a
+              href={WAITLIST_LINKEDIN_HENNING}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3 transition hover:border-slate-300 hover:shadow-card-soft"
+            >
+              <span className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0A66C2] text-white">
+                  <Linkedin size={16} />
+                </span>
+                <span>
+                  <span className="block text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                    DM directly
+                  </span>
+                  <span className="block text-sm font-semibold text-slate-900">
+                    Henning on LinkedIn
+                  </span>
+                </span>
+              </span>
+              <ArrowUpRight size={14} className="shrink-0 text-slate-400" />
+            </a>
+
+            <p className="px-1 pt-2 text-[11px] leading-snug text-slate-400">
+              No newsletter, no drip emails — we&apos;ll only follow up if
+              you ask. Open-source self-host stays MIT and free forever.
+            </p>
+          </div>
         </div>
       </div>
     </section>
