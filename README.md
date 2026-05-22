@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚒 Hydrant
+<img src="assets/hydrant-banner.svg" alt="Hydrant — incident knowledge on demand" width="460" />
 
 **AI knowledge layer for incident response.**
 *Open-source · MCP-native · Cited by design.*
@@ -11,6 +11,10 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 **[Watch the 2-minute demo →](https://thehydrant.dev)** · [Quickstart](#-quickstart-5-minutes) · [Tools](#-what-you-get) · [Wire into your AI client](#-wire-it-into-your-ai-client) · [Contributing](CONTRIBUTING.md)
+
+<br />
+
+<img src="assets/hydrant-demo.svg" alt="Hydrant in action — one prompt, two-minute diagnosis with cited sources" width="780" />
 
 </div>
 
