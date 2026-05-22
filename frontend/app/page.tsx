@@ -398,23 +398,6 @@ function WhyHydrant() {
 
 /* ─────────── Knowledge graph (live force-directed visualization) ─────────── */
 
-<<<<<<< Updated upstream
-// Flourish-style minimalist network — black dots on white, faint grey edges,
-// no labels by default. On hover: a tooltip surfaces the node's actual data
-// (PR title, commit hash, file path, etc.) and the hovered node's edges
-// light up red so its neighbourhood pops out of the cloud.
-//
-// Density matters more than legibility per node — the impression is "this
-// is a real knowledge graph", and the hover state is the affordance for
-// looking up any individual node's contents.
-type GraphNode = SimulationNodeDatum & {
-  id: string;
-  kind: string;       // small uppercase label, e.g. "PULL REQUEST"
-  title: string;      // main line, e.g. "PR #2"
-  detail: string;     // meta line, e.g. "by @henning · 2d ago"
-  // visual classification — used to colour / ring the dot
-  variant: "seed" | "ring" | "muted" | "normal";
-=======
 // Each source type forms a visually distinct cluster around the pinned
 // "auth 401s in prod" incident at the centre. Rendered as colour-coded
 // circles sized by edge degree — same visual language as the live /graph
@@ -441,7 +424,6 @@ type GraphNode = SimulationNodeDatum & {
   r: number;
   isHub: boolean;
   label?: string;
->>>>>>> Stashed changes
   fx?: number | null;
   fy?: number | null;
 };
@@ -451,153 +433,6 @@ type GraphEdge = SimulationLinkDatum<GraphNode> & {
   target: string | GraphNode;
 };
 
-<<<<<<< Updated upstream
-const GRAPH_W = 1500;
-const GRAPH_H = 900;
-
-// ~50-node graph. The "active incident" sub-graph (incident, the active
-// Linear, the suspect PR, the broken file, the related Slack threads)
-// gets the `ring` variant so it pops out of the cloud even before hover.
-// Everything else is `muted` (smaller, lighter) — those are the
-// background nodes that establish "we have a real knowledge graph".
-const C_X = GRAPH_W / 2;
-const C_Y = GRAPH_H / 2;
-
-const INITIAL_NODES: GraphNode[] = [
-  // ─── the active incident sub-graph (8 rings + the seed) ──────────
-  { id: "incident",  variant: "seed",   kind: "INCIDENT · SEV-1", title: "auth 401s in prod",     detail: "paged 12 min ago · #incident-auth-401s",  x: C_X, y: C_Y, fx: C_X, fy: C_Y },
-  { id: "slack-1",   variant: "ring",   kind: "SLACK",            title: "#oncall",               detail: "JWT regression · 3d ago",                 x: 420, y: 200 },
-  { id: "slack-2",   variant: "ring",   kind: "SLACK",            title: "#payments",             detail: "401s spiking · 6h ago",                   x: 620, y: 130 },
-  { id: "linear-3",  variant: "ring",   kind: "LINEAR · OPEN",    title: "CLI-21",                detail: "tracking: auth 401s",                     x: 1100, y: 380 },
-  { id: "pr-1",      variant: "ring",   kind: "PULL REQUEST",     title: "PR #2",                 detail: "auth config defaults · @henning",         x: 1180, y: 540 },
-  { id: "commit-1",  variant: "ring",   kind: "COMMIT",           title: "38e7e9",                detail: "set JWT default to 0",                    x: 920, y: 640 },
-  { id: "file-1",    variant: "ring",   kind: "FILE",             title: "src/config/config.js",  detail: "L30–35 · default(30) → 0",                x: 660, y: 660 },
-  { id: "owner-1",   variant: "ring",   kind: "OWNER",            title: "@alice-platform",       detail: "CODEOWNERS rule *",                       x: 360, y: 720 },
-  { id: "notion-1",  variant: "ring",   kind: "NOTION",           title: "Auth incident flow",    detail: "runbook · edited 5d ago",                 x: 200, y: 470 },
-
-  // ─── extended Slack universe (12) ────────────────────────────────
-  { id: "slack-3",   variant: "normal", kind: "SLACK",            title: "#incident-auth-fix",    detail: "post-mortem · 2w ago",                    x: 280, y: 240 },
-  { id: "slack-4",   variant: "normal", kind: "SLACK",            title: "#sre-alerts",           detail: "token expiry · 1d ago",                   x: 780, y: 110 },
-  { id: "slack-5",   variant: "muted",  kind: "SLACK",            title: "#eng-platform",         detail: "escalation · 1w ago",                     x: 160, y: 380 },
-  { id: "slack-6",   variant: "normal", kind: "SLACK",            title: "#engineering",          detail: "code review · 5d ago",                    x: 940, y: 260 },
-  { id: "slack-7",   variant: "muted",  kind: "SLACK",            title: "#oncall-handoff",       detail: "auth degradation · 12h ago",              x: 540, y: 60  },
-  { id: "slack-8",   variant: "muted",  kind: "SLACK",            title: "#incidents-archive",    detail: "old auth thread · 2mo ago",               x: 90,  y: 280 },
-  { id: "slack-9",   variant: "muted",  kind: "SLACK",            title: "#platform-fyi",         detail: "API rate limits · 4d ago",                x: 720, y: 50  },
-  { id: "slack-10",  variant: "muted",  kind: "SLACK",            title: "#db-migrations",        detail: "pgvector setup · 1mo ago",                x: 60,  y: 540 },
-  { id: "slack-11",  variant: "muted",  kind: "SLACK",            title: "#standup",              detail: "platform updates · 1w ago",               x: 1340, y: 100 },
-  { id: "slack-12",  variant: "muted",  kind: "SLACK",            title: "#releases",             detail: "v4.2 deploy notes · 3d ago",              x: 1280, y: 60  },
-  { id: "slack-13",  variant: "muted",  kind: "SLACK",            title: "#security",             detail: "JWT audit findings · 2w ago",             x: 1400, y: 280 },
-  { id: "slack-14",  variant: "muted",  kind: "SLACK",            title: "#api-team",             detail: "OAuth scopes · 6d ago",                   x: 1430, y: 460 },
-
-  // ─── extended Linear tickets (5) ─────────────────────────────────
-  { id: "linear-1",  variant: "normal", kind: "LINEAR",           title: "CLI-5",                 detail: "JWT auth expiry bug",                     x: 1080, y: 220 },
-  { id: "linear-2",  variant: "normal", kind: "LINEAR",           title: "CLI-12",                detail: "Add JWT refresh logic",                   x: 1240, y: 300 },
-  { id: "linear-4",  variant: "muted",  kind: "LINEAR",           title: "CLI-7",                 detail: "audit auth flows · backlog",              x: 1380, y: 200 },
-  { id: "linear-5",  variant: "muted",  kind: "LINEAR",           title: "CLI-9",                 detail: "refresh token expiry · done",             x: 1310, y: 400 },
-  { id: "linear-6",  variant: "muted",  kind: "LINEAR",           title: "CLI-18",                detail: "audit log infrastructure",                x: 1410, y: 560 },
-
-  // ─── extended PRs (4) ────────────────────────────────────────────
-  { id: "pr-2",      variant: "normal", kind: "PULL REQUEST",     title: "PR #5",                 detail: "refresh token rotation · @sara",          x: 1300, y: 660 },
-  { id: "pr-3",      variant: "normal", kind: "PULL REQUEST",     title: "PR #8",                 detail: "JWT validation patch · @mike",            x: 1100, y: 720 },
-  { id: "pr-4",      variant: "muted",  kind: "PULL REQUEST",     title: "PR #1",                 detail: "initial auth · @alice-platform",          x: 480, y: 820 },
-  { id: "pr-5",      variant: "muted",  kind: "PULL REQUEST",     title: "PR #11",                detail: "OAuth scope expansion · @sara",           x: 1400, y: 720 },
-
-  // ─── extended commits (8) ────────────────────────────────────────
-  { id: "commit-2",  variant: "normal", kind: "COMMIT",           title: "a2c4f1",                detail: "add JWT expiry env var",                  x: 1040, y: 740 },
-  { id: "commit-3",  variant: "normal", kind: "COMMIT",           title: "b8d3e2",                detail: "update CORS config",                      x: 800, y: 740 },
-  { id: "commit-4",  variant: "muted",  kind: "COMMIT",           title: "f1a9b3",                detail: "bump auth-lib → v3",                      x: 1200, y: 760 },
-  { id: "commit-5",  variant: "muted",  kind: "COMMIT",           title: "2c7e8b",                detail: "merge auth refactor",                     x: 720, y: 830 },
-  { id: "commit-6",  variant: "muted",  kind: "COMMIT",           title: "9f1a3d",                detail: "upgrade jose to v5",                      x: 880, y: 830 },
-  { id: "commit-7",  variant: "muted",  kind: "COMMIT",           title: "4b2d9e",                detail: "fix CORS preflight",                      x: 600, y: 830 },
-  { id: "commit-8",  variant: "muted",  kind: "COMMIT",           title: "7e8c1f",                detail: "add rate-limit middleware",               x: 460, y: 770 },
-  { id: "commit-9",  variant: "muted",  kind: "COMMIT",           title: "d3a5b9",                detail: "revert hot-fix",                          x: 1330, y: 820 },
-
-  // ─── extended files (4) ──────────────────────────────────────────
-  { id: "file-2",    variant: "normal", kind: "FILE",             title: "src/auth/jwt.ts",       detail: "L88–112 · expiry check",                  x: 540, y: 750 },
-  { id: "file-3",    variant: "muted",  kind: "FILE",             title: "src/middleware/cors.ts", detail: "CORS preflight",                          x: 620, y: 870 },
-  { id: "file-4",    variant: "muted",  kind: "FILE",             title: "src/server/index.ts",   detail: "rate-limit wiring",                       x: 360, y: 870 },
-  { id: "file-5",    variant: "muted",  kind: "FILE",             title: "src/auth/refresh.ts",   detail: "refresh-token flow",                      x: 800, y: 860 },
-
-  // ─── extended owners (2) ─────────────────────────────────────────
-  { id: "owner-2",   variant: "muted",  kind: "OWNER",            title: "@bob-security",         detail: "CODEOWNERS auth/",                        x: 220, y: 620 },
-  { id: "owner-3",   variant: "muted",  kind: "OWNER",            title: "@carol-backend",        detail: "CODEOWNERS server/",                      x: 240, y: 820 },
-
-  // ─── extended Notion docs (3) ────────────────────────────────────
-  { id: "notion-2",  variant: "normal", kind: "NOTION",           title: "JWT config reference",  detail: "engineering docs",                        x: 280, y: 560 },
-  { id: "notion-3",  variant: "muted",  kind: "NOTION",           title: "API design principles", detail: "docs · 3mo ago",                          x: 100, y: 700 },
-  { id: "notion-4",  variant: "muted",  kind: "NOTION",           title: "Runbook · DB recovery", detail: "ops · 1mo ago",                           x: 60,  y: 380 },
-];
-
-const INITIAL_EDGES: GraphEdge[] = [
-  // ─── radial — incident → top-level matches in each source ────────
-  { source: "incident", target: "slack-1" },
-  { source: "incident", target: "slack-2" },
-  { source: "incident", target: "linear-3" },
-  { source: "incident", target: "pr-1" },
-  { source: "incident", target: "notion-1" },
-
-  // ─── active GitHub chain ─────────────────────────────────────────
-  { source: "pr-1",     target: "commit-1" },
-  { source: "pr-1",     target: "commit-2" },
-  { source: "commit-1", target: "file-1" },
-  { source: "commit-2", target: "file-1" },
-  { source: "file-1",   target: "owner-1" },
-
-  // ─── secondary PR/commit/file chains ─────────────────────────────
-  { source: "pr-2",     target: "commit-3" },
-  { source: "pr-2",     target: "commit-4" },
-  { source: "pr-3",     target: "commit-4" },
-  { source: "pr-3",     target: "commit-5" },
-  { source: "pr-4",     target: "commit-7" },
-  { source: "pr-4",     target: "commit-8" },
-  { source: "pr-5",     target: "commit-9" },
-  { source: "commit-3", target: "file-2" },
-  { source: "commit-4", target: "file-2" },
-  { source: "commit-5", target: "file-5" },
-  { source: "commit-6", target: "file-5" },
-  { source: "commit-7", target: "file-3" },
-  { source: "commit-8", target: "file-4" },
-  { source: "commit-9", target: "file-4" },
-  { source: "file-2",   target: "owner-2" },
-  { source: "file-3",   target: "owner-3" },
-  { source: "file-4",   target: "owner-3" },
-  { source: "file-5",   target: "owner-1" },
-
-  // ─── Slack ↔ Linear / PR cross-referencing ───────────────────────
-  { source: "slack-1",  target: "linear-1" },
-  { source: "slack-3",  target: "linear-2" },
-  { source: "slack-4",  target: "linear-4" },
-  { source: "slack-6",  target: "pr-3" },
-  { source: "slack-13", target: "linear-6" },
-  { source: "slack-14", target: "pr-5" },
-  { source: "slack-9",  target: "pr-5" },
-  { source: "slack-10", target: "file-1" },
-  { source: "slack-8",  target: "pr-4" },
-  { source: "slack-12", target: "pr-1" },
-  { source: "slack-11", target: "linear-5" },
-
-  // ─── intra-Slack chains ──────────────────────────────────────────
-  { source: "slack-1",  target: "slack-3" },
-  { source: "slack-2",  target: "slack-4" },
-  { source: "slack-7",  target: "slack-5" },
-  { source: "slack-7",  target: "slack-9" },
-  { source: "slack-3",  target: "slack-8" },
-
-  // ─── Linear internal ─────────────────────────────────────────────
-  { source: "linear-1", target: "linear-2" },
-  { source: "linear-3", target: "pr-1" },
-  { source: "linear-1", target: "notion-2" },
-  { source: "linear-5", target: "pr-2" },
-  { source: "linear-6", target: "notion-3" },
-  { source: "linear-2", target: "pr-3" },
-
-  // ─── Notion cross-linking ────────────────────────────────────────
-  { source: "notion-1", target: "notion-2" },
-  { source: "notion-2", target: "notion-3" },
-  { source: "notion-1", target: "notion-4" },
-  { source: "notion-4", target: "linear-6" },
-];
-=======
 // Wider viewBox + bigger ring radius push the labelled hubs apart so the
 // centre doesn't crowd and the "+N type" chips have room to breathe between
 // neighbouring lobes. Background starfield (below) covers the rest of the
@@ -1454,25 +1289,6 @@ function curvePath(
   const cy = my + (dx / len) * len * curvature;
   return `M ${ax} ${ay} Q ${cx} ${cy} ${bx} ${by}`;
 }
->>>>>>> Stashed changes
-
-// Per-node radius by variant — also drives the collide radius so big
-// nodes get more personal space than the muted background ones.
-function radiusFor(v: GraphNode["variant"]): number {
-  switch (v) {
-    case "seed":   return 14;
-    case "ring":   return 9;
-    case "normal": return 6;
-    case "muted":  return 4;
-  }
-}
-// Same fill for all non-seed nodes — the seed is the only colour pop.
-// Muted nodes are slightly lighter so they recede into the background.
-function fillFor(v: GraphNode["variant"]): string {
-  if (v === "seed")  return "#DC2626";
-  if (v === "muted") return "#94a3b8";  // slate-400
-  return "#0f172a";                      // slate-900
-}
 
 function KnowledgeGraph() {
   // `nodes` is the rendered state — re-rendered on every simulation tick.
@@ -1480,23 +1296,6 @@ function KnowledgeGraph() {
     INITIAL_NODES.map((n) => ({ ...n })),
   );
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-<<<<<<< Updated upstream
-
-  // Neighbour map: for a hovered node, which others are 1-edge away?
-  // Computed once because INITIAL_EDGES is stable.
-  const neighbourMap: Map<string, Set<string>> = (() => {
-    const map = new Map<string, Set<string>>();
-    for (const e of INITIAL_EDGES) {
-      const s = typeof e.source === "string" ? e.source : e.source.id;
-      const t = typeof e.target === "string" ? e.target : e.target.id;
-      if (!map.has(s)) map.set(s, new Set());
-      if (!map.has(t)) map.set(t, new Set());
-      map.get(s)!.add(t);
-      map.get(t)!.add(s);
-    }
-    return map;
-  })();
-=======
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Toolbar state
@@ -1568,7 +1367,6 @@ function KnowledgeGraph() {
     code: "Code chain",
     discussion: "Discussion",
   }[relFilter];
->>>>>>> Stashed changes
 
   useEffect(() => {
     const simNodes: GraphNode[] = INITIAL_NODES.map((n) => ({ ...n }));
@@ -1581,41 +1379,13 @@ function KnowledgeGraph() {
     const anchorY = (n: GraphNode) => (n.cluster ? CLUSTER[n.cluster].y : C_Y);
 
     const sim = forceSimulation<GraphNode>(simNodes)
-<<<<<<< Updated upstream
-      .force("charge", forceManyBody<GraphNode>().strength(-180))
-=======
       // Stronger repulsion now that there's more room — keeps leaves from
       // crowding the centre under their hub.
       .force("charge", forceManyBody<GraphNode>().strength(-160))
->>>>>>> Stashed changes
       .force(
         "link",
         forceLink<GraphNode, GraphEdge>(simLinks)
           .id((d) => d.id)
-<<<<<<< Updated upstream
-          .distance(80)
-          .strength(0.45),
-      )
-      .force("center", forceCenter<GraphNode>(GRAPH_W / 2, GRAPH_H / 2))
-      .force(
-        "collide",
-        forceCollide<GraphNode>((d) => radiusFor(d.variant) + 4),
-      )
-      .alphaTarget(0.025)
-      .alphaDecay(0.015);
-
-    // Hard-clamp each node inside the viewBox so dots near the edges
-    // don't get clipped by the panel border.
-    const margin = 16;
-    const clampToBounds = (n: GraphNode) => {
-      const r = radiusFor(n.variant);
-      if (n.x != null) {
-        n.x = Math.max(r + margin, Math.min(GRAPH_W - r - margin, n.x));
-      }
-      if (n.y != null) {
-        n.y = Math.max(r + margin, Math.min(GRAPH_H - r - margin, n.y));
-      }
-=======
           // Longer spoke from incident → hub, shorter between leaves. Match
           // the ring radius so the link force and cluster anchors agree on
           // where each hub belongs.
@@ -1643,7 +1413,6 @@ function KnowledgeGraph() {
       const pad = (n.isHub ? 72 : 6) + n.r;
       if (n.x != null) n.x = Math.max(pad, Math.min(GRAPH_W - pad, n.x));
       if (n.y != null) n.y = Math.max(pad, Math.min(GRAPH_H - pad, n.y));
->>>>>>> Stashed changes
     };
 
     sim.on("tick", () => {
@@ -1657,19 +1426,6 @@ function KnowledgeGraph() {
   }, []);
 
   const nodeById = (id: string) => nodes.find((n) => n.id === id);
-  const hovered = hoveredId ? nodeById(hoveredId) : null;
-  const hoveredNeighbours = hoveredId ? neighbourMap.get(hoveredId) ?? new Set<string>() : new Set<string>();
-
-  // Tooltip is offset down-right of the hovered dot by default, but
-  // flips above / to the left if it would otherwise overflow the canvas.
-  const TT_W = 240;
-  const TT_H = 78;
-  const tooltipPos = hovered && hovered.x != null && hovered.y != null
-    ? {
-        x: hovered.x + 14 + TT_W > GRAPH_W ? hovered.x - 14 - TT_W : hovered.x + 14,
-        y: hovered.y + 14 + TT_H > GRAPH_H ? hovered.y - 14 - TT_H : hovered.y + 14,
-      }
-    : null;
 
   // Focus = whatever the user is paying attention to. Hover wins over click
   // so moving the cursor naturally previews adjacency without losing the
@@ -1690,23 +1446,6 @@ function KnowledgeGraph() {
         <p className="mt-4 max-w-2xl text-base text-slate-600">
           Hydrant stores every Slack thread, Linear ticket, GitHub artefact and
           Notion page as a typed node. Their relationships — references, blame,
-<<<<<<< Updated upstream
-          ownership, semantic similarity — are first-class edges. Hover any
-          node to see what it actually is.
-        </p>
-
-        <div className="shadow-card-soft mt-14 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
-            <span className="font-mono text-[11px] text-slate-500">
-              graph · auth-401s incident
-            </span>
-            <span className="font-mono text-[11px] text-slate-400">
-              {INITIAL_NODES.length} nodes · {INITIAL_EDGES.length} edges · live · hover for detail
-            </span>
-          </div>
-
-          <div className="bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.05)_1px,transparent_1px)] bg-[length:22px_22px]">
-=======
           ownership, semantic similarity — are first-class edges. Hover a node
           to trace its blast radius; click one to inspect the underlying record.
         </p>
@@ -1729,7 +1468,6 @@ function KnowledgeGraph() {
           </div>
 
           <div className="relative bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[length:22px_22px]">
->>>>>>> Stashed changes
             <svg
               viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
               role="img"
@@ -1741,21 +1479,6 @@ function KnowledgeGraph() {
                 setRelMenuOpen(false);
               }}
             >
-<<<<<<< Updated upstream
-              {/* edges — faint grey by default, red when one of their
-                  endpoints is the hovered node */}
-              {INITIAL_EDGES.map((e, i) => {
-                const sId = typeof e.source === "string" ? e.source : e.source.id;
-                const tId = typeof e.target === "string" ? e.target : e.target.id;
-                const a = nodeById(sId);
-                const b = nodeById(tId);
-                if (
-                  !a || !b ||
-                  a.x == null || a.y == null ||
-                  b.x == null || b.y == null
-                ) return null;
-                const isActive = hoveredId === sId || hoveredId === tId;
-=======
               <defs>
                 <filter id="edge-bloom" x="-50%" y="-50%" width="200%" height="200%">
                   <feGaussianBlur stdDeviation="2.5" />
@@ -1860,7 +1583,6 @@ function KnowledgeGraph() {
                     />
                   );
                 }
->>>>>>> Stashed changes
                 return (
                   <line
                     key={i}
@@ -1868,64 +1590,15 @@ function KnowledgeGraph() {
                     y1={a.y}
                     x2={b.x}
                     y2={b.y}
-<<<<<<< Updated upstream
-                    stroke={isActive ? "#DC2626" : "#cbd5e1"}
-                    strokeWidth={isActive ? 1.5 : 0.8}
-                    strokeOpacity={isActive ? 0.95 : 0.55}
-=======
                     stroke={stroke}
                     strokeWidth={width}
                     strokeOpacity={opacity}
->>>>>>> Stashed changes
                     strokeLinecap="round"
                     filter={useFilter ? "url(#edge-bloom)" : undefined}
                   />
                 );
               })}
 
-<<<<<<< Updated upstream
-              {/* nodes — small filled dots, ring around the "active
-                  incident sub-graph" nodes so the relevant thread reads
-                  out of the cloud even before any hover */}
-              {nodes.map((n) => {
-                if (n.x == null || n.y == null) return null;
-                const r = radiusFor(n.variant);
-                const fill = fillFor(n.variant);
-                const isHovered = n.id === hoveredId;
-                const isNeighbour = hoveredId != null && hoveredNeighbours.has(n.id);
-                const showRing = n.variant === "ring" || n.variant === "seed";
-                const ringR = r + 5;
-                return (
-                  <g
-                    key={n.id}
-                    onMouseEnter={() => setHoveredId(n.id)}
-                    onMouseLeave={() => setHoveredId((cur) => (cur === n.id ? null : cur))}
-                    style={{ cursor: "pointer" }}
-                  >
-                    {/* invisible larger hit-circle for easier hovering */}
-                    <circle cx={n.x} cy={n.y} r={Math.max(r + 8, 14)} fill="transparent" />
-                    {/* ring around special nodes */}
-                    {showRing && (
-                      <circle
-                        cx={n.x}
-                        cy={n.y}
-                        r={ringR}
-                        fill="none"
-                        stroke={n.variant === "seed" ? "#DC2626" : "#0f172a"}
-                        strokeOpacity={isHovered || isNeighbour ? 1 : 0.55}
-                        strokeWidth={1.25}
-                      />
-                    )}
-                    {/* the node itself */}
-                    <circle
-                      cx={n.x}
-                      cy={n.y}
-                      r={r}
-                      fill={isHovered ? "#DC2626" : fill}
-                      stroke={isNeighbour ? "#DC2626" : "transparent"}
-                      strokeWidth={isNeighbour ? 1.5 : 0}
-                    />
-=======
               {/* ── nodes ─────────────────────────────────────────────── */}
               {nodes.map((n) => {
                 if (n.x == null || n.y == null) return null;
@@ -2107,34 +1780,12 @@ function KnowledgeGraph() {
                         );
                       })()
                     )}
->>>>>>> Stashed changes
                   </g>
                 );
               })}
 
               {/* hover tooltip — small dark card with the node's data,
                   rendered last so it sits on top of every other element */}
-              {hovered && tooltipPos && (
-                <foreignObject
-                  x={tooltipPos.x}
-                  y={tooltipPos.y}
-                  width={TT_W}
-                  height={TT_H}
-                  pointerEvents="none"
-                >
-                  <div className="rounded-lg border border-slate-800 bg-slate-900/95 px-3 py-2 text-white shadow-lg">
-                    <div className="font-mono text-[9px] font-semibold uppercase tracking-widest text-red-300">
-                      {hovered.kind}
-                    </div>
-                    <div className="mt-0.5 truncate text-[14px] font-semibold">
-                      {hovered.title}
-                    </div>
-                    <div className="truncate text-[11px] text-slate-300">
-                      {hovered.detail}
-                    </div>
-                  </div>
-                </foreignObject>
-              )}
             </svg>
 
             {/* toolbar chrome — top-left: focus + zoom controls */}
@@ -2275,12 +1926,16 @@ function KnowledgeGraph() {
           </div>
 
           {/* legend strip */}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 px-4 py-3 text-[11px] text-slate-500">
-            <GraphLegendDot variant="seed"   label="incident (seed)" />
-            <GraphLegendDot variant="ring"   label="active incident path" />
-            <GraphLegendDot variant="normal" label="related" />
-            <GraphLegendDot variant="muted"  label="background" />
-            <span className="ml-auto italic text-slate-400">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-800 px-4 py-3 text-[11px] text-slate-400">
+            <GraphLegendDot color="#DC2626" label="incident" />
+            <GraphLegendDot color="#36C5F0" label="Slack" />
+            <GraphLegendDot color="#5E6AD2" label="Linear" />
+            <GraphLegendDot color="#c084fc" label="PR" />
+            <GraphLegendDot color="#fbbf24" label="commit" />
+            <GraphLegendDot color="#38bdf8" label="file" />
+            <GraphLegendDot color="#f472b6" label="owner" />
+            <GraphLegendDot color="#94a3b8" label="Notion" />
+            <span className="ml-auto italic text-slate-500">
               pgvector kNN + graph traversal in one query
             </span>
           </div>
@@ -2290,15 +1945,6 @@ function KnowledgeGraph() {
   );
 }
 
-<<<<<<< Updated upstream
-function GraphLegendDot({
-  variant,
-  label,
-}: {
-  variant: GraphNode["variant"];
-  label: string;
-}) {
-=======
 function DetailCard({
   node,
   onClose,
@@ -2481,20 +2127,11 @@ function IncidentDetailCard({ onClose }: { onClose: () => void }) {
 }
 
 function GraphLegendDot({ color, label }: { color: string; label: string }) {
->>>>>>> Stashed changes
   return (
     <span className="inline-flex items-center gap-1.5">
       <span
-        className="inline-block rounded-full"
-        style={{
-          background: fillFor(variant),
-          width: variant === "seed" ? 10 : variant === "ring" ? 8 : variant === "normal" ? 6 : 5,
-          height: variant === "seed" ? 10 : variant === "ring" ? 8 : variant === "normal" ? 6 : 5,
-          outline:
-            variant === "ring" ? "1px solid #0f172a" :
-            variant === "seed" ? "1px solid #DC2626" : "none",
-          outlineOffset: variant === "seed" || variant === "ring" ? "2px" : "0",
-        }}
+        className="inline-block h-2 w-2 rounded-full"
+        style={{ background: color }}
       />
       {label}
     </span>
