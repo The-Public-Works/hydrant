@@ -14,7 +14,20 @@
 
 <br />
 
-<img src="assets/hydrant-demo.svg" alt="Hydrant in action — one prompt, two-minute diagnosis with cited sources" width="780" />
+<img src="assets/hydrant-incident-flow.svg" alt="Hydrant incident flow — alert lands, MCP fans out across Slack/GitHub/Notion, Linear ticket opens, synthesis posts back to the channel" width="780" />
+
+<sub>An alert lands → Hydrant fans out across Slack, GitHub and Notion → opens a Linear ticket → posts the synthesis back. ~2 min end-to-end.</sub>
+
+<br /><br />
+
+<details>
+<summary><sub>↓ the actual tool calls behind that flow</sub></summary>
+
+<br />
+
+<img src="assets/hydrant-demo.svg" alt="Hydrant tool stream — diagnose_incident, get_pr_diff, create_linear_issue, synthesis posted" width="780" />
+
+</details>
 
 </div>
 

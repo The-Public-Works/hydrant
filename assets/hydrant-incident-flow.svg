@@ -1,0 +1,253 @@
+<!--
+  Animated incident-flow visualization — companion to hydrant-demo.svg.
+
+  Tells the visual story in 12 seconds:
+    1. Sev-1 alert lands (left side, red pulse)
+    2. Hydrant MCP wakes up (centre, red flame card)
+    3. Fans out to 3 source clusters — Slack thread, GitHub PR,
+       Notion runbook — drawing each edge as a stroke that paints in
+    4. New Linear ticket CLI-36 spawns at the right with a NEW badge
+    5. "✓ Synthesis posted to #incident-channel" banner lands at the
+       bottom — the final beat
+    6. Brief hold, then the whole sequence restarts
+
+  Same SMIL technique as hydrant-demo.svg: every animated element
+  has `opacity` cycling via <animate>, and edges paint in via
+  stroke-dashoffset. GitHub renders SMIL inline in README <img>
+  tags so this animates on the repository page.
+
+  Static-fallback safety: every element's base opacity attribute is
+  set to "1" so renderers that strip SMIL still show the final
+  state (all nodes + edges visible).
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 900 360"
+  role="img"
+  aria-label="Hydrant incident flow — alert lands, MCP fans out across Slack, GitHub and Notion, opens a Linear ticket, posts the synthesis back"
+>
+  <title>Hydrant incident flow — alert in, synthesis out, ~2 minutes</title>
+
+  <!-- Background card -->
+  <rect width="900" height="360" rx="14" fill="#0F172A" />
+
+  <!-- Window chrome -->
+  <g transform="translate(20 22)">
+    <circle cx="6"  cy="0" r="6" fill="#EF4444" />
+    <circle cx="26" cy="0" r="6" fill="#FBBF24" />
+    <circle cx="46" cy="0" r="6" fill="#10B981" />
+    <text
+      x="72" y="4"
+      font-family="ui-monospace, SF Mono, Menlo, Consolas, monospace"
+      font-size="12" fill="#94A3B8"
+    >hydrant · live incident flow</text>
+    <text
+      x="880" y="4" text-anchor="end"
+      font-family="ui-monospace, SF Mono, Menlo, Consolas, monospace"
+      font-size="11" fill="#64748B"
+    >sev-1 · ~2 min end-to-end</text>
+  </g>
+  <line x1="0" y1="48" x2="900" y2="48" stroke="#1E293B" stroke-width="1" />
+
+
+  <!-- ─── BEAT 1 (0.5s): Sev-1 alert pulses in on the left ─── -->
+  <g opacity="1">
+    <animate attributeName="opacity"
+             values="0;1;1;1;0"
+             keyTimes="0;0.04;0.95;0.97;1"
+             dur="12s" repeatCount="indefinite" />
+    <!-- soft halo, slowly breathing -->
+    <circle cx="130" cy="190" r="28" fill="#DC2626" opacity="0.18">
+      <animate attributeName="r"
+               values="22;30;22"
+               keyTimes="0;0.5;1"
+               dur="2.4s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="130" cy="190" r="18" fill="#DC2626" />
+    <!-- a tiny flame glyph in white inside the dot -->
+    <g transform="translate(122 182) scale(0.75)"
+       fill="none" stroke="#FFFFFF" stroke-width="2.4"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+    </g>
+    <text x="130" y="240" text-anchor="middle"
+          font-family="ui-sans-serif, system-ui" font-size="12" font-weight="700" fill="#FCA5A5">
+      SEV-1 ALERT
+    </text>
+    <text x="130" y="258" text-anchor="middle"
+          font-family="ui-sans-serif, system-ui" font-size="11" fill="#94A3B8">
+      auth 401s in prod
+    </text>
+  </g>
+
+
+  <!-- ─── BEAT 2 (1.2s): edge alert → Hydrant paints in ─── -->
+  <line x1="148" y1="190" x2="372" y2="190"
+        stroke="#DC2626" stroke-width="2" stroke-linecap="round"
+        stroke-dasharray="240" stroke-dashoffset="240">
+    <animate attributeName="stroke-dashoffset"
+             values="240;240;0;0;240"
+             keyTimes="0;0.08;0.16;0.96;1"
+             dur="12s" repeatCount="indefinite" />
+  </line>
+
+
+  <!-- ─── Hydrant MCP card (centre) ─── -->
+  <g opacity="1">
+    <animate attributeName="opacity"
+             values="0;0;1;1;0"
+             keyTimes="0;0.12;0.16;0.96;1"
+             dur="12s" repeatCount="indefinite" />
+    <rect x="372" y="160" width="64" height="64" rx="12"
+          fill="#DC2626" />
+    <g transform="translate(380 168) scale(2)"
+       fill="none" stroke="#FFFFFF" stroke-width="2.6"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+    </g>
+    <text x="404" y="248" text-anchor="middle"
+          font-family="ui-sans-serif, system-ui" font-size="12" font-weight="700" fill="#F8FAFC">
+      HYDRANT
+    </text>
+    <text x="404" y="266" text-anchor="middle"
+          font-family="ui-mono, SF Mono, Menlo, monospace" font-size="10" fill="#94A3B8">
+      mcp server
+    </text>
+  </g>
+
+
+  <!-- ─── BEAT 3 (2-5s): three source edges paint in, then nodes ─── -->
+
+  <!-- edge → Slack (up-right) -->
+  <line x1="436" y1="180" x2="610" y2="105"
+        stroke="#36C5F0" stroke-width="1.6" stroke-linecap="round"
+        stroke-dasharray="200" stroke-dashoffset="200">
+    <animate attributeName="stroke-dashoffset"
+             values="200;200;0;0;200"
+             keyTimes="0;0.18;0.26;0.96;1"
+             dur="12s" repeatCount="indefinite" />
+  </line>
+  <g opacity="1">
+    <animate attributeName="opacity"
+             values="0;0;1;1;0"
+             keyTimes="0;0.24;0.28;0.96;1"
+             dur="12s" repeatCount="indefinite" />
+    <circle cx="610" cy="105" r="14" fill="#36C5F0" />
+    <text x="610" y="80" text-anchor="middle"
+          font-family="ui-sans-serif, system-ui" font-size="11" font-weight="700" fill="#7DD3FC">
+      #oncall
+    </text>
+    <text x="610" y="135" text-anchor="middle"
+          font-family="ui-sans-serif, system-ui" font-size="10" fill="#94A3B8">
+      past JWT thread
+    </text>
+  </g>
+
+  <!-- edge → GitHub PR (right, horizontal) -->
+  <line x1="436" y1="192" x2="640" y2="195"
+        stroke="#c084fc" stroke-width="1.6" stroke-linecap="round"
+        stroke-dasharray="220" stroke-dashoffset="220">
+    <animate attributeName="stroke-dashoffset"
+             values="220;220;0;0;220"
+             keyTimes="0;0.28;0.36;0.96;1"
+             dur="12s" repeatCount="indefinite" />
+  </line>
+  <g opacity="1">
+    <animate attributeName="opacity"
+             values="0;0;1;1;0"
+             keyTimes="0;0.34;0.38;0.96;1"
+             dur="12s" repeatCount="indefinite" />
+    <circle cx="640" cy="195" r="14" fill="#c084fc" />
+    <text x="640" y="172" text-anchor="middle"
+          font-family="ui-sans-serif, system-ui" font-size="11" font-weight="700" fill="#d8b4fe">
+      PR #2
+    </text>
+    <text x="640" y="226" text-anchor="middle"
+          font-family="ui-sans-serif, system-ui" font-size="10" fill="#94A3B8">
+      config.js · @henning
+    </text>
+  </g>
+
+  <!-- edge → Notion (down-right) -->
+  <line x1="436" y1="205" x2="610" y2="280"
+        stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round"
+        stroke-dasharray="200" stroke-dashoffset="200">
+    <animate attributeName="stroke-dashoffset"
+             values="200;200;0;0;200"
+             keyTimes="0;0.38;0.46;0.96;1"
+             dur="12s" repeatCount="indefinite" />
+  </line>
+  <g opacity="1">
+    <animate attributeName="opacity"
+             values="0;0;1;1;0"
+             keyTimes="0;0.44;0.48;0.96;1"
+             dur="12s" repeatCount="indefinite" />
+    <circle cx="610" cy="280" r="14" fill="#94A3B8" />
+    <text x="610" y="312" text-anchor="middle"
+          font-family="ui-sans-serif, system-ui" font-size="11" font-weight="700" fill="#cbd5e1">
+      Notion
+    </text>
+    <text x="610" y="328" text-anchor="middle"
+          font-family="ui-sans-serif, system-ui" font-size="10" fill="#94A3B8">
+      auth runbook
+    </text>
+  </g>
+
+
+  <!-- ─── BEAT 4 (6.5s): New Linear ticket appears at the right ─── -->
+  <line x1="654" y1="195" x2="780" y2="195"
+        stroke="#5E6AD2" stroke-width="1.6" stroke-linecap="round"
+        stroke-dasharray="150" stroke-dashoffset="150">
+    <animate attributeName="stroke-dashoffset"
+             values="150;150;0;0;150"
+             keyTimes="0;0.52;0.58;0.96;1"
+             dur="12s" repeatCount="indefinite" />
+  </line>
+  <g opacity="1">
+    <animate attributeName="opacity"
+             values="0;0;1;1;0"
+             keyTimes="0;0.56;0.60;0.96;1"
+             dur="12s" repeatCount="indefinite" />
+    <!-- ticket pill -->
+    <rect x="754" y="178" width="100" height="36" rx="8" fill="#5E6AD2" />
+    <text x="804" y="200" text-anchor="middle"
+          font-family="ui-mono, SF Mono, Menlo, monospace" font-size="13" font-weight="700" fill="#FFFFFF">
+      CLI-36
+    </text>
+    <text x="804" y="170" text-anchor="middle"
+          font-family="ui-sans-serif, system-ui" font-size="9" font-weight="700" letter-spacing="2" fill="#10B981">
+      ✓ NEW
+    </text>
+    <text x="804" y="232" text-anchor="middle"
+          font-family="ui-sans-serif, system-ui" font-size="10" fill="#94A3B8">
+      ticket opened
+    </text>
+  </g>
+
+
+  <!-- ─── BEAT 5 (8s): green "synthesis posted" banner along the bottom ─── -->
+  <g opacity="1">
+    <animate attributeName="opacity"
+             values="0;0;1;1;0"
+             keyTimes="0;0.66;0.70;0.96;1"
+             dur="12s" repeatCount="indefinite" />
+    <rect x="240" y="305" width="420" height="34" rx="17"
+          fill="rgba(16,185,129,0.16)" stroke="#10B981" stroke-width="1" />
+    <text x="262" y="326"
+          font-family="ui-sans-serif, system-ui" font-size="13" font-weight="700" fill="#10B981">
+      ✓
+    </text>
+    <text x="282" y="326"
+          font-family="ui-sans-serif, system-ui" font-size="12" fill="#A7F3D0">
+      synthesis posted to
+    </text>
+    <text x="424" y="326"
+          font-family="ui-mono, SF Mono, Menlo, monospace" font-size="12" font-weight="700" fill="#A7F3D0">
+      #incident-auth-401s
+    </text>
+    <text x="588" y="326"
+          font-family="ui-sans-serif, system-ui" font-size="12" fill="#A7F3D0">
+      · whole team has context
+    </text>
+  </g>
+</svg>
